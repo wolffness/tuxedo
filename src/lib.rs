@@ -2,6 +2,7 @@
 
 pub mod action;
 pub mod app;
+pub mod attach;
 pub mod cli;
 pub mod clipboard;
 pub mod cmd;

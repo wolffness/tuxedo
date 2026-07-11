@@ -36,6 +36,8 @@ const EDITING: Section = (
         ("yb", "copy body only"),
         ("u", "undo"),
         ("N", "note panel (in-app)"),
+        ("t", "attach file"),
+        ("Enter", "open attachments"),
     ],
 );
 

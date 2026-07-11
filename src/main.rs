@@ -328,7 +328,7 @@ fn handle_key(app: &mut App, key: KeyEvent, keybinds: &KeyBindings) {
         Mode::Search => handle_search(app, key),
         Mode::Help => handle_help(app, key),
         Mode::Settings => handle_settings(app, key),
-        Mode::PromptProject | Mode::PromptContext | Mode::PromptSaveFilter => {
+        Mode::PromptProject | Mode::PromptContext | Mode::PromptSaveFilter | Mode::PromptAttach => {
             handle_prompt(app, key)
         }
         Mode::PickProject | Mode::PickContext | Mode::PickSavedFilter => handle_pick(app, key),
@@ -1010,6 +1010,7 @@ fn handle_prompt(app: &mut App, key: KeyEvent) {
                 Mode::PromptProject => app.add_project_to_current(&value),
                 Mode::PromptContext => app.toggle_context_on_current(&value),
                 Mode::PromptSaveFilter => app.save_current_filter_as(&value),
+                Mode::PromptAttach => app.attach_file_to_current(&value),
                 _ => {}
             }
         }
@@ -1061,6 +1062,8 @@ fn resolve_normal_key(app: &mut App, key: KeyEvent, keybinds: &KeyBindings) -> O
         KeyCode::Char('o') => Action::OpenNote,
         KeyCode::Char('O') => Action::CreateOrOpenNote,
         KeyCode::Char('N') => Action::OpenNotePanel,
+        KeyCode::Char('t') => Action::BeginAttach,
+        KeyCode::Enter => Action::OpenAttachments,
         KeyCode::Char('x') => Action::ToggleComplete,
         // 'dd' chord. First press arms; second fires.
         KeyCode::Char('d') if app.chord.toggle('d') => Action::Delete,
@@ -1329,6 +1332,13 @@ fn apply_action(app: &mut App, action: Action) {
         Action::OpenNote => app.open_note_for_current(),
         Action::CreateOrOpenNote => app.create_or_open_note_for_current(),
         Action::OpenNotePanel => app.open_note_panel_for_current(),
+        Action::BeginAttach => {
+            if app.cur_abs().is_some() {
+                app.draft_clear();
+                app.mode = Mode::PromptAttach;
+            }
+        }
+        Action::OpenAttachments => app.open_attachments_for_current(),
         Action::OpenShare => match app.ensure_share_started() {
             Ok(_) => {
                 app.mode = Mode::Share;
@@ -1423,6 +1433,71 @@ mod tests {
 
     fn resolve(app: &mut App, key: KeyEvent) -> Option<Action> {
         resolve_normal_key(app, key, &KeyBindings::default())
+    }
+
+    /// End-to-end attach flow through the real key dispatcher: `t` opens the
+    /// prompt, a dropped path (with Finder-style escaped spaces) is typed,
+    /// Enter copies the file into `assets/` and appends the `at:` token.
+    #[test]
+    fn attach_prompt_copies_file_into_assets_and_appends_token() {
+        let dir = std::env::temp_dir().join(format!(
+            "tuxedo-attach-e2e-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let src = dir.join("client brief.pdf");
+        std::fs::write(&src, b"pdf-bytes").expect("seed src");
+        let todo = dir.join("todo.txt");
+        let raw = "Send proposal +client\n";
+        std::fs::write(&todo, raw).expect("seed todo");
+        let mut app = App::new(
+            todo.clone(),
+            raw.to_string(),
+            "2026-05-06".into(),
+            Config::default(),
+        );
+        let kb = KeyBindings::default();
+
+        handle_key(&mut app, key('t'), &kb);
+        assert_eq!(app.mode, Mode::PromptAttach, "t opens the attach prompt");
+        let dropped = src.to_string_lossy().replace(' ', "\\ ");
+        for c in dropped.chars() {
+            handle_key(&mut app, key(c), &kb);
+        }
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &kb,
+        );
+
+        assert_eq!(app.mode, Mode::Normal);
+        let task_raw = &app.tasks()[0].raw;
+        assert!(
+            task_raw.contains("at:client-brief.pdf"),
+            "token appended: {task_raw}"
+        );
+        let copied = dir.join("assets/client-brief.pdf");
+        assert_eq!(
+            std::fs::read(&copied).expect("copied attachment"),
+            b"pdf-bytes"
+        );
+        // Original file untouched.
+        assert!(src.exists());
+    }
+
+    /// Enter on a task without attachments flashes a hint instead of
+    /// spawning an opener.
+    #[test]
+    fn enter_without_attachments_flashes_hint() {
+        let mut app = build_app();
+        let kb = KeyBindings::default();
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &kb,
+        );
+        assert_eq!(app.flash_active(), Some("no attachments; press t to add"));
     }
 
     /// End-to-end note-panel flow through the real key dispatcher: `N`

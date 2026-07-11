@@ -424,6 +424,7 @@ pub fn render_prompt(frame: &mut Frame, area: Rect, app: &App) {
         Mode::PromptProject => ("+", " ADD PROJECT "),
         Mode::PromptContext => ("@", " TOGGLE CONTEXT "),
         Mode::PromptSaveFilter => ("✦", " SAVE FILTER AS "),
+        Mode::PromptAttach => ("▣", " ATTACH FILE "),
         _ => return,
     };
     let block = Block::default()
@@ -470,6 +471,24 @@ pub fn render_prompt(frame: &mut Frame, area: Rect, app: &App) {
         Paragraph::new(line).style(Style::default().bg(theme.panel)),
         input_area,
     );
+
+    // The attach prompt gets a drop-hint below the input: dragging a file
+    // onto the terminal pastes its path into the input line.
+    if app.mode == Mode::PromptAttach {
+        let hint = Paragraph::new(vec![
+            Line::raw(""),
+            Line::from(Span::styled(
+                "  drag a file here, or type a path",
+                Style::default().fg(theme.dim),
+            )),
+            Line::from(Span::styled(
+                "  Enter attach · Esc cancel",
+                Style::default().fg(theme.dim),
+            )),
+        ])
+        .style(Style::default().bg(theme.panel));
+        frame.render_widget(hint, _p2);
+    }
 }
 
 /// Colored example tokens illustrating the todo.txt format.

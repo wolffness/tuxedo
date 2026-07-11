@@ -33,6 +33,10 @@ pub enum Mode {
     PickContext,      // j/k cycles through contexts to filter by
     PickSavedFilter,  // j/k cycles through saved searches to apply
     PromptSaveFilter, // text input → name the current search and save it
+    /// Attach-file prompt (`t`): drop a file onto the terminal (the path is
+    /// pasted) or type one; Enter copies it into `assets/` and appends an
+    /// `at:` token to the current task.
+    PromptAttach,
     CommandPalette,
     /// In-TUI note panel (`N`): view and edit the current task's Markdown
     /// note without leaving the app. Esc closes (saving pending edits);

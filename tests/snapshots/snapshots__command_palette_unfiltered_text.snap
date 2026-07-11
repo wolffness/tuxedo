@@ -24,8 +24,8 @@ expression: buffer_to_text(&buf)
                     │   open task note                                       o │                    
                     │   create or open task note                             O │                    
                     │   edit note in panel                                   N │                    
-                    │   undo                                                 u │                    
-                    │   cursor down                                      j / ↓ │                    
+                    │   attach file to task                                  t │                    
+                    │   open task attachments                            Enter │                    
                     │  ↑↓ / Ctrl-N/P navigate · Enter run · Esc cancel         │                    
                     └──────────────────────────────────────────────────────────┘                    
                                                                                                     

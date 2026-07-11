@@ -53,6 +53,11 @@ pub enum Action {
     CreateOrOpenNote,
     /// `N` — open the in-TUI note panel (creates the note if needed).
     OpenNotePanel,
+    /// `t` — open the attach-file prompt (drag a file or type a path).
+    BeginAttach,
+    /// `Enter` — open the current task's `at:` attachments with the system
+    /// opener.
+    OpenAttachments,
     EscapeStack,
     /// Open the phone-capture overlay (QR + URL). First invocation lazily
     /// binds the HTTP server; subsequent invocations just re-show the
@@ -111,6 +116,8 @@ impl Action {
             "open_note" | "note" => Some(Self::OpenNote),
             "create_or_open_note" | "create_note" => Some(Self::CreateOrOpenNote),
             "open_note_panel" | "note_panel" => Some(Self::OpenNotePanel),
+            "begin_attach" | "attach" => Some(Self::BeginAttach),
+            "open_attachments" | "attachments" => Some(Self::OpenAttachments),
             "escape_stack" | "escape" => Some(Self::EscapeStack),
             "open_share" | "share" => Some(Self::OpenShare),
             "open_theme_picker" | "theme_picker" => Some(Self::OpenThemePicker),

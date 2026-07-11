@@ -26,6 +26,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         Mode::PickContext => "PICK @CONTEXT".into(),
         Mode::PickSavedFilter => "PICK FILTER".into(),
         Mode::PromptSaveFilter => "SAVE FILTER".into(),
+        Mode::PromptAttach => "ATTACH".into(),
         Mode::CommandPalette => "COMMAND".into(),
         Mode::Share => "SHARE".into(),
         Mode::PickTheme => "PICK THEME".into(),

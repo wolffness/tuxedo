@@ -132,6 +132,14 @@ pub fn draw(frame: &mut Frame, app: &App) {
             frame.render_widget(Clear, body_area);
             settings::render(frame, body_area, app);
         }
+        Mode::PromptAttach => {
+            // Wider and taller than the tag prompts: file paths are long and
+            // the box carries a drop-hint footer.
+            let w: u16 = (u32::from(area.width) * 7 / 10).clamp(40, 90) as u16;
+            let r = centered_in(area, w.min(area.width.saturating_sub(4)), 8);
+            frame.render_widget(Clear, r);
+            dialog::render_prompt(frame, r, app);
+        }
         Mode::PromptProject | Mode::PromptContext | Mode::PromptSaveFilter => {
             let w: u16 = PROMPT_MAX_W.min(area.width.saturating_sub(4));
             let r = centered_in(area, w, PROMPT_H);

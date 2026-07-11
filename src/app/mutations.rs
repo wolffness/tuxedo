@@ -239,6 +239,76 @@ impl App {
         Some((target.path, task))
     }
 
+    /// Commit the attach prompt: copy `input` (a typed or dropped path) into
+    /// the `assets/` dir next to the todo file and append an `at:` token to
+    /// the task under the cursor.
+    pub fn attach_file_to_current(&mut self, input: &str) {
+        if input.trim().is_empty() {
+            return;
+        }
+        if matches!(self.view(), View::Archive) {
+            self.flash("cannot attach to archived task");
+            return;
+        }
+        let Some(abs) = self.cur_task_index_in_tasks() else {
+            return;
+        };
+        let src = crate::attach::clean_dropped_path(input);
+        if !src.is_file() {
+            self.flash(format!("not a file: {}", src.display()));
+            return;
+        }
+        let assets = crate::attach::assets_dir(&self.file_path);
+        let name = match crate::attach::copy_into_assets(&src, &assets) {
+            Ok(name) => name,
+            Err(e) => {
+                self.flash(format!("attach failed: {e}"));
+                return;
+            }
+        };
+        match self.store.append_at(abs, &format!("at:{name}")) {
+            EditOutcome::Saved { abs } => {
+                self.flash(format!("attached {name}"));
+                self.after_mutation(abs);
+            }
+            EditOutcome::Aborted(r) => self.handle_reconcile_abort(r),
+            EditOutcome::Error(e) => self.flash(format!("attach link failed: {e}")),
+            EditOutcome::Empty | EditOutcome::OutOfRange | EditOutcome::TermNotFound => {}
+        }
+    }
+
+    /// Open every attachment of the task under the cursor with the system
+    /// opener. Flashes a hint when the task has none.
+    pub fn open_attachments_for_current(&mut self) {
+        let Some(task) = self.cur_task() else {
+            return;
+        };
+        let rels = crate::attach::attach_rels_from_raw(&task.raw);
+        if rels.is_empty() {
+            self.flash("no attachments; press t to add");
+            return;
+        }
+        let assets = crate::attach::assets_dir(&self.file_path);
+        let mut opened = 0usize;
+        for rel in &rels {
+            let path = crate::attach::path_for_rel(&assets, rel);
+            if !path.exists() {
+                self.flash(format!("attachment missing: {rel}"));
+                return;
+            }
+            if let Err(e) = crate::attach::open_with_system(&path) {
+                self.flash(format!("open failed: {e}"));
+                return;
+            }
+            opened += 1;
+        }
+        self.flash(if opened == 1 {
+            "opened attachment".to_string()
+        } else {
+            format!("opened {opened} attachments")
+        });
+    }
+
     pub fn undo(&mut self) {
         match self.store.undo() {
             UndoOutcome::Undone => {

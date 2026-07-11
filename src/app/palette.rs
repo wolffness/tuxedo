@@ -83,6 +83,16 @@ pub const ENTRIES: &[PaletteEntry] = &[
         action: Action::OpenNotePanel,
     },
     PaletteEntry {
+        label: "attach file to task",
+        keys: "t",
+        action: Action::BeginAttach,
+    },
+    PaletteEntry {
+        label: "open task attachments",
+        keys: "Enter",
+        action: Action::OpenAttachments,
+    },
+    PaletteEntry {
         label: "undo",
         keys: "u",
         action: Action::Undo,

@@ -300,6 +300,13 @@ fn help_overlay() {
 }
 
 #[test]
+fn attach_prompt_overlay() {
+    let mut app = make_app();
+    app.mode = Mode::PromptAttach;
+    snapshot_app("attach_prompt_overlay", &app);
+}
+
+#[test]
 fn note_panel_overlay() {
     let mut app = make_app();
     app.note_panel = Some(tuxedo::app::NotePanel {

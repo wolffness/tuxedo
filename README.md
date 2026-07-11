@@ -149,6 +149,18 @@ cargo build --release
 
 Requires the Rust 2024 edition (recent stable toolchain).
 
+### macOS app bundle
+
+```sh
+./scripts/package-macos.sh
+cp -R dist/Tuxedo.app /Applications/
+```
+
+Builds `dist/Tuxedo.app`: a Dock/Spotlight-launchable bundle that opens
+tuxedo in a dedicated Terminal window. The launcher runs in your login
+shell, so `TODO_FILE`/`TODO_DIR` from your dotfiles are honored; with
+neither set it starts in `$HOME`.
+
 ## Usage
 
 `tuxedo` is two things in one binary: an interactive TUI, and a one-shot

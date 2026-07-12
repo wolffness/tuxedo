@@ -20,44 +20,16 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp target/release/tuxedo "$APP/Contents/Resources/tuxedo"
 cp packaging/tuxedo.icns "$APP/Contents/Resources/tuxedo.icns"
-cp scripts/capture-inbox.sh "$APP/Contents/Resources/tuxedo-capture.sh"
-chmod +x "$APP/Contents/Resources/tuxedo-capture.sh"
+# Native quick-capture agent (⌥]): a tiny AppKit panel that appends to
+# the inbox.txt sibling of TODO_FILE. Compiled from packaging/, installed
+# into the bundle, and kept alive by a per-user LaunchAgent.
+echo "Building quick-capture agent..."
+swiftc -O -o "$APP/Contents/Resources/TuxedoCapture" \
+    packaging/TuxedoCapture.swift -framework AppKit -framework Carbon
 
-# Quick-capture hotkey window (⌥]): its own dynamic profile so iTerm2
-# registers the global hotkey. Key code 30 = ]; modifier 524288 = ⌥.
-# (⌥Space was taken by Raycast on this machine.)
-DYN_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-mkdir -p "$DYN_DIR"
-cat > "$DYN_DIR/tuxedo-capture.json" <<PROFILE
-{
-  "Profiles": [
-    {
-      "Name": "Tuxedo Capture",
-      "Guid": "tuxedo-capture-hotkey",
-      "Normal Font": "IBMPlexMono-Regular 15",
-      "Use Non-ASCII Font": false,
-      "Custom Command": "Yes",
-      "Command": "/bin/zsh -lc 'exec \\"/Applications/Tuxedo.app/Contents/Resources/tuxedo-capture.sh\\"'",
-      "Has Hotkey": true,
-      "HotKey Key Code": 30,
-      "HotKey Modifier Flags": 524288,
-      "HotKey Characters": "]",
-      "HotKey Characters Ignoring Modifiers": "]",
-      "HotKey Window Autohides": true,
-      "HotKey Window Animates": true,
-      "HotKey Window Floats": true,
-      "Rows": 6,
-      "Columns": 72,
-      "Background Color": { "Red Component": 0.008, "Green Component": 0.04, "Blue Component": 0.008 },
-      "Foreground Color": { "Red Component": 0.2, "Green Component": 1.0, "Blue Component": 0.2 },
-      "Cursor Color": { "Red Component": 0.2, "Green Component": 1.0, "Blue Component": 0.2 },
-      "Cursor Text Color": { "Red Component": 0.008, "Green Component": 0.04, "Blue Component": 0.008 },
-      "Silence Bell": true,
-      "Scrollback Lines": 0
-    }
-  ]
-}
-PROFILE
+# The iTerm2-based capture profile is superseded by the native panel;
+# remove it so ⌥] isn't registered twice.
+rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/tuxedo-capture.json"
 
 cat > "$APP/Contents/MacOS/tuxedo-launcher" <<'LAUNCHER'
 #!/bin/zsh
@@ -176,4 +148,28 @@ rm -rf /Applications/Tuxedo.app
 cp -R "$APP" /Applications/
 rm -rf "$APP"
 touch /Applications/Tuxedo.app
-echo "Installed: /Applications/Tuxedo.app"
+
+# LaunchAgent: start the capture panel at login and keep it running.
+AGENT="$HOME/Library/LaunchAgents/dev.wolffness.tuxedo.capture.plist"
+mkdir -p "$HOME/Library/LaunchAgents"
+cat > "$AGENT" <<AGENTPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.wolffness.tuxedo.capture</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/Tuxedo.app/Contents/Resources/TuxedoCapture</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+AGENTPLIST
+launchctl bootout "gui/$(id -u)/dev.wolffness.tuxedo.capture" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$AGENT"
+echo "Installed: /Applications/Tuxedo.app (+ capture agent on ⌥])"

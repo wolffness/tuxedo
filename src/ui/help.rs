@@ -27,7 +27,7 @@ const EDITING: Section = (
         ("e", "edit line (normal)"),
         ("i", "edit line (insert)"),
         ("r", "reschedule task"),
-        ("x", "toggle complete"),
+        ("x", "complete → archive"),
         ("dd", "delete task"),
         ("p", "cycle priority A→B→C→·"),
         ("c", "add/remove context"),
@@ -35,8 +35,19 @@ const EDITING: Section = (
         ("yy", "copy line to clipboard"),
         ("yb", "copy body only"),
         ("u", "undo"),
+    ],
+);
+
+const NOTES_FILES: Section = (
+    "NOTES & FILES",
+    &[
         ("m / N", "note panel (in-app)"),
-        ("t", "attach file"),
+        ("  i / Esc", "panel: write / back·close"),
+        ("  Shift+arrows", "panel: select text"),
+        ("  Del/Backspace", "panel: delete selection"),
+        ("  Ctrl-S / o", "panel: save / $EDITOR"),
+        ("o / O", "open / create note in $EDITOR"),
+        ("t", "attach file (drag or path)"),
         ("Enter", "open attachments"),
     ],
 );
@@ -109,7 +120,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     // Keybindings (top, two columns) — divider — Format (bottom, two columns).
     // Each half splits sections across left/right; the last section in each
     // column drops its trailing blank so the divider lands tight.
-    let kb_lines = two_columns(theme, inner.width, &[NAVIGATION, EDITING], &[VIEW, SYSTEM]);
+    let kb_lines = two_columns(
+        theme,
+        inner.width,
+        &[NAVIGATION, EDITING, SYSTEM],
+        &[VIEW, NOTES_FILES],
+    );
     let kb_height = u16::try_from(kb_lines.len()).unwrap_or(u16::MAX);
 
     let (fmt_left, fmt_right) = FORMAT.1.split_at(FORMAT.1.len().div_ceil(2));

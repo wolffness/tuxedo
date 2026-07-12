@@ -16,21 +16,21 @@ expression: buffer_to_text(&buf)
  CONT│    e                 edit line (normal)        H                 show done in list     │     
    @e│    i                 edit line (insert)        F                 show future in list   │     
    @h│    r                 reschedule task           [ / ]             toggle filter / detail│     
-   @l│    x                 toggle complete           T                 cycle theme           │     
+   @l│    x                 complete → archive        T                 cycle theme           │     
    @p│    dd                delete task               D                 cycle density         │     
      │    p                 cycle priority A→B→C→·    L                 toggle line numbers   │     
      │    c                 add/remove context                                                │     
-     │    +                 add project             SYSTEM                                    │     
-     │    yy                copy line to clipboard    : / Ctrl-P        command palette       │     
-     │    yb                copy body only            s                 share capture QR      │     
-     │    u                 undo                      ? / ,             help / settings       │     
-     │    m / N             note panel (in-app)       q                 quit                  │     
-     │    t                 attach file                                                       │     
-     │    Enter             open attachments                                                  │     
+     │    +                 add project             NOTES & FILES                             │     
+     │    yy                copy line to clipboard    m / N             note panel (in-app)   │     
+     │    yb                copy body only              i / Esc         panel: write / back·cl│     
+     │    u                 undo                        Shift+arrows    panel: select text    │     
+     │                                                  Del/Backspace   panel: delete selectio│     
+     │  SYSTEM                                          Ctrl-S / o      panel: save / $EDITOR │     
+     │    : / Ctrl-P        command palette           o / O             open / create note in │     
+     │    s                 share capture QR          t                 attach file (drag or p│     
+     │    ? / ,             help / settings           Enter             open attachments      │     
+     │    q                 quit                                                              │     
      │────────────────────────────────────────────────────────────────────────────────────────│     
-     │  FORMAT                                                                                │     
-     │    (A)               priority A-Z              due:YYYY-MM-DD    due date              │     
-     │    YYYY-MM-DD        creation / done date      rec:Nu            recur (u in d/w/m/y/b)│     
      └────────────────────────────────────────────────────────────────────────────────────────┘     
                                                                                                     
  HELP   ? close help                                         15 open · 2026-05-06 · tuxedo 2026.6.3

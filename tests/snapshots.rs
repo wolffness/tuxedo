@@ -300,6 +300,43 @@ fn help_overlay() {
 }
 
 #[test]
+fn detail_pane_shows_note_content_and_attachments() {
+    // Own fixture dir: the detail pane reads the note and checks the
+    // attachment on disk, so both need deterministic content and paths.
+    let base = PathBuf::from("/tmp/tuxedo-snapshot-detail");
+    let notes = base.join("notes");
+    let assets = base.join("assets");
+    std::fs::create_dir_all(&notes).expect("mkdir notes");
+    std::fs::create_dir_all(&assets).expect("mkdir assets");
+    std::fs::write(
+        notes.join("briefing.md"),
+        "# Briefing\n\nContext for the client call.\n\n- [ ] send agenda\n> keep it short\n",
+    )
+    .expect("seed note");
+    std::fs::write(assets.join("spec.pdf"), b"pdf").expect("seed asset");
+
+    let todo = base.join("todo.txt");
+    let raw = "Prepare client call +client note:briefing.md at:spec.pdf\n";
+    std::fs::write(&todo, raw).expect("seed todo");
+    let mut app = App::new(
+        todo,
+        raw.to_string(),
+        "2026-05-06".to_string(),
+        Config {
+            notes_dir: Some(notes.to_string_lossy().into_owned()),
+            ..Config::default()
+        },
+    );
+    app.prefs.density = Density::Compact;
+    snapshot_app("detail_note_and_attachments", &app);
+    // The attachment name must have registered a clickable file:// target.
+    assert_eq!(
+        app.link_target("spec.pdf").as_deref(),
+        Some("file:///tmp/tuxedo-snapshot-detail/assets/spec.pdf")
+    );
+}
+
+#[test]
 fn attach_prompt_overlay() {
     let mut app = make_app();
     app.mode = Mode::PromptAttach;

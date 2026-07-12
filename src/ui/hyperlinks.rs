@@ -27,6 +27,10 @@ pub struct UrlRun {
     pub x: u16,
     pub y: u16,
     pub text: String,
+    /// Link target when it differs from the visible text (e.g. attachment
+    /// names mapping to `file://` URIs, via `App::link_targets`). `None`
+    /// means the text itself is the URL.
+    pub href: Option<String>,
     pub fg: Color,
     pub bg: Color,
     pub modifier: Modifier,
@@ -72,6 +76,7 @@ pub fn collect(buf: &Buffer) -> Vec<UrlRun> {
                 x: start,
                 y,
                 text,
+                href: None,
                 fg,
                 bg,
                 modifier,
@@ -94,7 +99,8 @@ pub fn emit_overlay<W: Write>(writer: &mut W, runs: &[UrlRun]) -> io::Result<()>
         write_sgr_fg(writer, run.fg)?;
         write_sgr_bg(writer, run.bg)?;
         write_sgr_modifier(writer, run.modifier)?;
-        write!(writer, "\x1b]8;;{}\x1b\\", run.text)?;
+        let target = run.href.as_deref().unwrap_or(&run.text);
+        write!(writer, "\x1b]8;;{target}\x1b\\")?;
         writer.write_all(run.text.as_bytes())?;
         writer.write_all(b"\x1b]8;;\x1b\\")?;
         writer.write_all(b"\x1b[0m")?;
@@ -236,6 +242,7 @@ mod tests {
             x: 4,
             y: 2,
             text: "https://example.com".to_string(),
+            href: None,
             fg: Color::Rgb(0x8a, 0xa9, 0xc9),
             bg: Color::Reset,
             modifier: Modifier::UNDERLINED,

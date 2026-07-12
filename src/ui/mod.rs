@@ -50,6 +50,8 @@ const PALETTE_MAX_W: u16 = 80;
 pub fn draw(frame: &mut Frame, app: &App) {
     let theme = app.theme();
     let area = frame.area();
+    // Fresh frame, fresh link registry (renderers repopulate it below).
+    app.clear_link_targets();
 
     // Paint full background.
     frame.render_widget(Block::default().style(Style::default().bg(theme.bg)), area);

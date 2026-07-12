@@ -99,6 +99,21 @@ pub fn copy_into_assets(src: &Path, assets_dir: &Path) -> std::io::Result<String
     Ok(dest_name)
 }
 
+/// `file://` URI for a local path, percent-encoding everything outside the
+/// RFC 3986 unreserved set (plus `/`). Terminals resolve these on click.
+pub fn file_uri(path: &Path) -> String {
+    let mut out = String::from("file://");
+    for b in path.to_string_lossy().bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+                out.push(b as char);
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 /// Open a file with the platform's default application, detached from the
 /// TUI. Errors surface to the caller (which flashes them); a successful
 /// spawn is fire-and-forget.
@@ -130,6 +145,14 @@ pub fn open_with_system(path: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_uri_percent_encodes_spaces_and_utf8() {
+        assert_eq!(
+            file_uri(Path::new("/tmp/a b/ç.pdf")),
+            "file:///tmp/a%20b/%C3%A7.pdf"
+        );
+    }
 
     #[test]
     fn extracts_at_tokens() {

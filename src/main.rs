@@ -211,10 +211,16 @@ fn run(
             // keeps cell symbols byte-identical to a plain render, so
             // ratatui's diff width calculation doesn't skip cells past the
             // URL — see `ui::hyperlinks` for the full explanation.
-            let runs = {
+            let mut runs = {
                 let frame = terminal.draw(|f| ui::draw(f, app))?;
                 hyperlinks::collect(frame.buffer)
             };
+            // Resolve display-text runs to their registered targets (e.g.
+            // attachment names → file:// URIs). Unregistered runs keep the
+            // text itself as the URL.
+            for run in &mut runs {
+                run.href = app.link_target(&run.text);
+            }
             if !runs.is_empty() {
                 let backend = terminal.backend_mut();
                 hyperlinks::emit_overlay(backend, &runs)?;

@@ -159,6 +159,13 @@ pub struct App {
     pending_editor_path: Option<PathBuf>,
     /// In-TUI note editor. `Some` only while `Mode::Note` is active.
     pub note_panel: Option<NotePanel>,
+    /// Display-text → link-target registry for the OSC 8 overlay. The
+    /// hyperlink pass (`ui::hyperlinks`) can only see the rendered text of an
+    /// underlined run, so renderers that want a link target different from
+    /// the visible text (e.g. an attachment name pointing at a `file://`
+    /// URI) register the mapping here during draw. Cleared at the start of
+    /// every frame; `RefCell` because renderers only hold `&App`.
+    pub(crate) link_targets: std::cell::RefCell<std::collections::HashMap<String, String>>,
     /// Theme index captured when the theme picker opened, so cancel
     /// can restore it.
     theme_pick_orig: usize,
@@ -223,6 +230,7 @@ impl App {
             notes_dir: note_dir,
             pending_editor_path: None,
             note_panel: None,
+            link_targets: std::cell::RefCell::new(std::collections::HashMap::new()),
             theme_pick_orig: 0,
             week_start: WeekStart::Sunday,
         };
@@ -453,6 +461,25 @@ impl App {
 
     pub fn take_pending_editor_path(&mut self) -> Option<PathBuf> {
         self.pending_editor_path.take()
+    }
+
+    /// Reset the display-text → link-target registry. Called at the top of
+    /// every `ui::draw` so stale mappings from previous frames can't leak.
+    pub fn clear_link_targets(&self) {
+        self.link_targets.borrow_mut().clear();
+    }
+
+    /// Register a link target for a piece of underlined display text (see
+    /// `link_targets`).
+    pub fn register_link_target(&self, text: impl Into<String>, href: impl Into<String>) {
+        self.link_targets
+            .borrow_mut()
+            .insert(text.into(), href.into());
+    }
+
+    /// Link target registered for `text` this frame, if any.
+    pub fn link_target(&self, text: &str) -> Option<String> {
+        self.link_targets.borrow().get(text).cloned()
     }
 
     /// True when at least one task is marked done. Used by the binary to

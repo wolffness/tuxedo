@@ -1,0 +1,36 @@
+---
+source: tests/snapshots.rs
+expression: buffer_to_text(&buf)
+---
+ FILTERS                   ▶▮◀ /tmp/tuxedo-snapshot-detail/todo.tx DETAIL                           
+                                                                                                    
+ PROJECTS                  (1)  NO PRIORITY  ───────────────────── priority                         
+   +client           1      1 ▸     Prepare client call +client no created   —                      
+                                                                   projects  +client                
+ CONTEXTS                                                          contexts                         
+   tag with @context                                                                                
+                                                                   FILES                            
+                                                                   spec.pdf                         
+                                                                                                    
+                                                                   NOTE                             
+                                                                   # Briefing                       
+                                                                                                    
+                                                                   Context for the client call.     
+                                                                                                    
+                                                                   - [ ] send agenda                
+                                                                   > keep it short                  
+                                                                                                    
+                                                                   RAW                              
+                                                                                                    
+                                                                   Prepare client call +client      
+                                                                   note:briefing.md at:spec.pdf     
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+ NORMAL   j/k · n new · r reschedule · x done · / search · ? h1 open · 2026-05-06 · tuxedo 2026.6.3

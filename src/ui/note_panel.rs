@@ -75,10 +75,11 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     );
 }
 
-/// Per-line Markdown styling. Line-level only (headings, bullets, quotes,
-/// code fences) so the text on screen stays byte-identical to the buffer and
-/// the cursor column maps 1:1 onto characters.
-fn style_line<'a>(theme: &Theme, panel: &NotePanel, idx: usize, raw: &'a str) -> Line<'a> {
+/// Per-line Markdown styling shared by the note panel and the DETAIL pane.
+/// Line-level only (headings, bullets, quotes, code fences) so the text on
+/// screen stays byte-identical to the source and cursor columns map 1:1 onto
+/// characters. Returns an owned line so callers can style transient strings.
+pub(crate) fn markdown_line(theme: &Theme, raw: &str) -> Line<'static> {
     let trimmed = raw.trim_start();
     let base = if trimmed.starts_with('#') {
         Style::default()
@@ -92,7 +93,6 @@ fn style_line<'a>(theme: &Theme, panel: &NotePanel, idx: usize, raw: &'a str) ->
         Style::default().fg(theme.fg)
     };
 
-    let mut spans: Vec<Span> = Vec::new();
     let is_bullet =
         trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ");
     if is_bullet {
@@ -100,18 +100,23 @@ fn style_line<'a>(theme: &Theme, panel: &NotePanel, idx: usize, raw: &'a str) ->
         let indent_len = raw.len() - trimmed.len();
         let (indent, rest) = raw.split_at(indent_len);
         let (marker, tail) = rest.split_at(1);
-        spans.push(Span::raw(indent));
-        spans.push(Span::styled(marker, Style::default().fg(theme.project)));
-        spans.push(Span::styled(tail, base));
+        Line::from(vec![
+            Span::raw(indent.to_string()),
+            Span::styled(marker.to_string(), Style::default().fg(theme.project)),
+            Span::styled(tail.to_string(), base),
+        ])
     } else {
-        spans.push(Span::styled(raw, base));
+        Line::from(Span::styled(raw.to_string(), base))
     }
+}
 
-    let mut line = Line::from(spans);
+fn style_line<'a>(theme: &Theme, panel: &NotePanel, idx: usize, raw: &'a str) -> Line<'a> {
+    let line = markdown_line(theme, raw);
     if idx == panel.row {
-        line = apply_cursor(theme, panel, line, raw);
+        apply_cursor(theme, panel, line, raw)
+    } else {
+        line
     }
-    line
 }
 
 /// Overlay the cursor cell on the current row. In insert mode the cursor may

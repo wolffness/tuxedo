@@ -38,7 +38,7 @@ if [[ -d /Applications/iTerm.app ]]; then
     {
       "Name": "Tuxedo",
       "Guid": "tuxedo-phosphor-green",
-      "Normal Font": "IBMPlexMono 16",
+      "Normal Font": "IBMPlexMono-Regular 18",
       "Use Non-ASCII Font": false,
       "Custom Command": "Yes",
       "Command": "/bin/zsh -lc 'cd \\"\$HOME\\"; exec \\"$BIN\\"'",

@@ -53,6 +53,19 @@ pub use types::{
 };
 pub use visibility::GroupKey;
 
+/// What a registered mouse-click region does when hit (see
+/// `App::click_targets`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClickAction {
+    /// Open a file with the system opener (attachment rows).
+    Open(PathBuf),
+    /// Toggle the checkbox on a note-panel buffer line.
+    TogglePanelRow(usize),
+    /// Toggle the checkbox on line `line` of the note file at `path`
+    /// (DETAIL-pane clicks, where no panel buffer is open).
+    ToggleNoteLine { path: PathBuf, line: usize },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WeekStart {
     Sunday,
@@ -166,11 +179,11 @@ pub struct App {
     /// URI) register the mapping here during draw. Cleared at the start of
     /// every frame; `RefCell` because renderers only hold `&App`.
     pub(crate) link_targets: std::cell::RefCell<std::collections::HashMap<String, String>>,
-    /// Clickable screen regions registered during draw: `(rect, path)` pairs
-    /// for attachment rows in the DETAIL pane. The run loop hit-tests mouse
-    /// clicks against these and opens the path with the system opener.
-    /// Cleared alongside `link_targets` at the start of every frame.
-    pub(crate) click_targets: std::cell::RefCell<Vec<(ratatui::layout::Rect, PathBuf)>>,
+    /// Clickable screen regions registered during draw. The run loop
+    /// hit-tests mouse clicks against these and dispatches the action
+    /// (open an attachment, toggle a subtask checkbox). Cleared alongside
+    /// `link_targets` at the start of every frame.
+    pub(crate) click_targets: std::cell::RefCell<Vec<(ratatui::layout::Rect, ClickAction)>>,
     /// Subtask-progress cache keyed by note path: `(mtime, (done, total))`.
     /// Renderers query per visible row every frame; the mtime check keeps
     /// this to one cheap metadata stat per row instead of a full read.
@@ -484,10 +497,9 @@ impl App {
         self.click_targets.borrow_mut().clear();
     }
 
-    /// Register a clickable screen region that opens `path` (see
-    /// `click_targets`).
-    pub fn register_click_target(&self, rect: ratatui::layout::Rect, path: PathBuf) {
-        self.click_targets.borrow_mut().push((rect, path));
+    /// Register a clickable screen region (see `click_targets`).
+    pub fn register_click_target(&self, rect: ratatui::layout::Rect, action: ClickAction) {
+        self.click_targets.borrow_mut().push((rect, action));
     }
 
     /// Subtask progress `(done, total)` for a task, from the checkboxes in
@@ -510,13 +522,61 @@ impl App {
         progress
     }
 
-    /// Path registered under the screen cell `(x, y)` this frame, if any.
-    pub fn click_target_at(&self, x: u16, y: u16) -> Option<PathBuf> {
+    /// Action registered under the screen cell `(x, y)` this frame, if any.
+    pub fn click_target_at(&self, x: u16, y: u16) -> Option<ClickAction> {
         self.click_targets
             .borrow()
             .iter()
             .find(|(r, _)| x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height)
-            .map(|(_, p)| p.clone())
+            .map(|(_, a)| a.clone())
+    }
+
+    /// Dispatch a mouse click. Returns true when something was hit (the
+    /// caller redraws). `Open` targets spawn the system opener; toggle
+    /// targets flip the checkbox in the panel buffer or the note file.
+    pub fn handle_click(&mut self, x: u16, y: u16) -> bool {
+        match self.click_target_at(x, y) {
+            Some(ClickAction::Open(path)) => {
+                match crate::attach::open_with_system(&path) {
+                    Ok(()) => self.flash("opened attachment"),
+                    Err(e) => self.flash(format!("open failed: {e}")),
+                }
+                true
+            }
+            Some(ClickAction::TogglePanelRow(row)) => {
+                if let Some(panel) = self.note_panel.as_mut() {
+                    panel.toggle_checkbox_at(row);
+                }
+                true
+            }
+            Some(ClickAction::ToggleNoteLine { path, line }) => {
+                self.toggle_note_file_line(&path, line);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Flip the checkbox on 0-based `line` of the note at `path`, writing
+    /// the file back. Used by DETAIL-pane clicks where no buffer is open.
+    fn toggle_note_file_line(&mut self, path: &std::path::Path, line: usize) {
+        let Ok(body) = std::fs::read_to_string(path) else {
+            self.flash("note read failed");
+            return;
+        };
+        let mut lines: Vec<String> = body.lines().map(str::to_string).collect();
+        let Some(flipped) = lines
+            .get(line)
+            .and_then(|l| crate::subtasks::toggle_line(l))
+        else {
+            return;
+        };
+        lines[line] = flipped;
+        let mut out = lines.join("\n");
+        out.push('\n');
+        if let Err(e) = std::fs::write(path, out) {
+            self.flash(format!("note save failed: {e}"));
+        }
     }
 
     /// Register a link target for a piece of underlined display text (see

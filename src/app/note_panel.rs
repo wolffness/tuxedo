@@ -380,6 +380,51 @@ impl NotePanel {
         self.clamp_col();
     }
 
+    /// Enter with checkbox continuation: on a checkbox line with text, the
+    /// new line starts with a fresh `- [ ] ` (same indent); on an *empty*
+    /// checkbox the marker is removed instead (Enter-Enter exits the list,
+    /// like every checklist editor). Plain lines get a plain newline.
+    pub fn smart_newline(&mut self) {
+        let cur = &self.lines[self.row];
+        if crate::subtasks::checkbox_state(cur).is_none() {
+            self.newline();
+            return;
+        }
+        // The marker runs through "] " (or "]" at end-of-line).
+        let close = cur.find(']').expect("checkbox_state guarantees a ]");
+        let marker_end = (close + 2).min(cur.len());
+        let has_text = !cur[marker_end..].trim().is_empty();
+        if !has_text {
+            self.lines[self.row].clear();
+            self.col = 0;
+            self.dirty = true;
+            return;
+        }
+        let indent: String = cur.chars().take_while(|c| c.is_whitespace()).collect();
+        let bullet = cur.trim_start().chars().next().unwrap_or('-');
+        self.newline();
+        let prefix = format!("{indent}{bullet} [ ] ");
+        self.lines[self.row].insert_str(0, &prefix);
+        self.col += prefix.chars().count();
+        self.dirty = true;
+    }
+
+    /// Toggle the checkbox on an arbitrary buffer line (mouse click).
+    /// Returns false when the line isn't a checkbox.
+    pub fn toggle_checkbox_at(&mut self, row: usize) -> bool {
+        let Some(line) = self.lines.get(row) else {
+            return false;
+        };
+        match crate::subtasks::toggle_line(line) {
+            Some(flipped) => {
+                self.lines[row] = flipped;
+                self.dirty = true;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Toggle the `- [ ]`/`- [x]` checkbox on the cursor line. Returns false
     /// (no-op) when the line isn't a checkbox.
     pub fn toggle_checkbox(&mut self) -> bool {
@@ -522,6 +567,43 @@ mod tests {
         assert_eq!((p.row, p.col), (1, 2), "into the next buffer line");
         p.move_up();
         assert_eq!((p.row, p.col), (0, 12), "back to the last visual row");
+    }
+
+    #[test]
+    fn smart_newline_continues_checkbox_lists() {
+        let mut p = panel("- [ ] first");
+        p.line_end();
+        p.smart_newline();
+        assert_eq!(p.lines, vec!["- [ ] first", "- [ ] "]);
+        assert_eq!((p.row, p.col), (1, 6), "cursor ready after the marker");
+        // Enter on the empty checkbox exits the list instead of chaining.
+        p.smart_newline();
+        assert_eq!(p.lines, vec!["- [ ] first", ""]);
+        assert_eq!((p.row, p.col), (1, 0));
+        // Plain lines get a plain newline.
+        p.lines[1] = "notes".into();
+        p.line_end();
+        p.smart_newline();
+        assert_eq!(p.lines, vec!["- [ ] first", "notes", ""]);
+    }
+
+    #[test]
+    fn smart_newline_preserves_indent_and_bullet() {
+        let mut p = panel("  * [x] nested done");
+        p.line_end();
+        p.smart_newline();
+        assert_eq!(p.lines[1], "  * [ ] ");
+    }
+
+    #[test]
+    fn toggle_checkbox_at_flips_arbitrary_row() {
+        let mut p = panel("# t\n- [ ] a\n- [x] b");
+        assert!(p.toggle_checkbox_at(1));
+        assert!(p.toggle_checkbox_at(2));
+        assert!(!p.toggle_checkbox_at(0));
+        assert_eq!(p.lines[1], "- [x] a");
+        assert_eq!(p.lines[2], "- [ ] b");
+        assert!(p.dirty);
     }
 
     #[test]

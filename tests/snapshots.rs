@@ -337,6 +337,44 @@ fn detail_pane_shows_note_content_and_attachments() {
 }
 
 #[test]
+fn clicking_a_detail_checkbox_toggles_it_in_the_note_file() {
+    let base = PathBuf::from("/tmp/tuxedo-snapshot-click");
+    let notes = base.join("notes");
+    std::fs::create_dir_all(&notes).expect("mkdir notes");
+    let note_path = notes.join("c.md");
+    std::fs::write(&note_path, "- [ ] send agenda\n").expect("seed note");
+    let todo = base.join("todo.txt");
+    let raw = "Client call note:c.md\n";
+    std::fs::write(&todo, raw).expect("seed todo");
+    let mut app = App::new(
+        todo,
+        raw.to_string(),
+        "2026-05-06".to_string(),
+        Config {
+            notes_dir: Some(notes.to_string_lossy().into_owned()),
+            ..Config::default()
+        },
+    );
+    app.prefs.density = Density::Compact;
+
+    // A real draw registers the click targets for this frame.
+    let buf = render(&app);
+    let text = buffer_to_text(&buf);
+    let (x, y) = text
+        .lines()
+        .enumerate()
+        .find_map(|(y, line)| line.find("[ ] send agenda").map(|x| (x as u16, y as u16)))
+        .expect("checkbox visible in DETAIL pane");
+
+    assert!(app.handle_click(x, y), "click hits the checkbox row");
+    assert_eq!(
+        std::fs::read_to_string(&note_path).expect("note"),
+        "- [x] send agenda\n",
+        "click toggled the checkbox in the file"
+    );
+}
+
+#[test]
 fn attach_prompt_overlay() {
     let mut app = make_app();
     app.mode = Mode::PromptAttach;

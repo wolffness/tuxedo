@@ -48,11 +48,17 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let sel = panel.selection_range();
     let mut lines: Vec<Line> = Vec::new();
     let mut cursor_display_row = 0usize;
+    // Checkbox buffer lines double as mouse targets: `(display_row, buffer
+    // row)`, converted to screen rects once the scroll offset is known.
+    let mut checkbox_rows: Vec<(usize, usize)> = Vec::new();
     for (i, raw) in panel.lines.iter().enumerate() {
         let chunks = chunk_chars(raw, wrap_w);
         let cursor_chunk = (panel.col / wrap_w).min(chunks.len() - 1);
         if i == panel.row {
             cursor_display_row = lines.len() + cursor_chunk;
+        }
+        if crate::subtasks::checkbox_state(raw).is_some() {
+            checkbox_rows.push((lines.len(), i));
         }
         let line_len = raw.chars().count();
         for (ci, chunk) in chunks.iter().enumerate() {
@@ -95,6 +101,21 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         lines.len(),
     );
     panel.scroll.set(offset);
+
+    for (display_row, buffer_row) in checkbox_rows {
+        let Some(rel) = display_row.checked_sub(usize::from(offset)) else {
+            continue;
+        };
+        if rel < usize::from(body_area.height) {
+            let rect = ratatui::layout::Rect {
+                x: body_area.x,
+                y: body_area.y + u16::try_from(rel).unwrap_or(u16::MAX),
+                width: body_area.width,
+                height: 1,
+            };
+            app.register_click_target(rect, crate::app::ClickAction::TogglePanelRow(buffer_row));
+        }
+    }
 
     frame.render_widget(
         Paragraph::new(lines)

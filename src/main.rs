@@ -251,16 +251,13 @@ fn run(
                 Event::Resize(_, _) => {
                     dirty = true;
                 }
-                // Left click on a registered target (attachment rows in the
-                // DETAIL pane) opens it with the system opener.
-                Event::Mouse(m) if m.kind == MouseEventKind::Down(MouseButton::Left) => {
-                    if let Some(path) = app.click_target_at(m.column, m.row) {
-                        match tuxedo::attach::open_with_system(&path) {
-                            Ok(()) => app.flash("opened attachment"),
-                            Err(e) => app.flash(format!("open failed: {e}")),
-                        }
-                        dirty = true;
-                    }
+                // Left click on a registered target: opens attachments or
+                // toggles subtask checkboxes (panel and DETAIL pane).
+                Event::Mouse(m)
+                    if m.kind == MouseEventKind::Down(MouseButton::Left)
+                        && app.handle_click(m.column, m.row) =>
+                {
+                    dirty = true;
                 }
                 _ => {}
             }
@@ -445,7 +442,7 @@ fn handle_note(app: &mut App, key: KeyEvent) {
             }
             KeyCode::Enter => {
                 panel.delete_selection();
-                panel.newline();
+                panel.smart_newline();
             }
             KeyCode::Backspace if alt => panel.delete_word_back(),
             KeyCode::Backspace if !panel.delete_selection() => panel.backspace(),

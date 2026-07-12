@@ -17,12 +17,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     // Wrap to the actual pane width minus 1-char left padding and 1-char
     // safety margin on the right. Floor at 16 so a tiny pane still wraps.
     let wrap_w = (area.width as usize).saturating_sub(2).max(16);
-    let mut clicks: Vec<(usize, std::path::PathBuf)> = Vec::new();
+    let mut clicks: Vec<(usize, crate::app::ClickAction)> = Vec::new();
     let lines = build_lines(theme, app, task, app.today(), wrap_w, &mut clicks);
     // Attachment rows double as mouse targets: convert their line indices
     // into absolute screen rects (the pane's Paragraph never scrolls, so
     // line index maps 1:1 to a row offset).
-    for (idx, path) in clicks {
+    for (idx, action) in clicks {
         let y = area.y + u16::try_from(idx).unwrap_or(u16::MAX);
         if y < area.y + area.height {
             let rect = Rect {
@@ -31,7 +31,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 width: area.width,
                 height: 1,
             };
-            app.register_click_target(rect, path);
+            app.register_click_target(rect, action);
         }
     }
     let para = Paragraph::new(lines).style(Style::default().bg(theme.panel).fg(theme.fg));
@@ -44,7 +44,7 @@ fn build_lines<'a>(
     task: Option<&'a Task>,
     today: &'a str,
     wrap_w: usize,
-    clicks: &mut Vec<(usize, std::path::PathBuf)>,
+    clicks: &mut Vec<(usize, crate::app::ClickAction)>,
 ) -> Vec<Line<'a>> {
     let mut rows: Vec<Line> = Vec::new();
     rows.push(line_panel(
@@ -142,7 +142,7 @@ fn build_lines<'a>(
             ],
         ));
     }
-    push_note_lines(&mut rows, theme, app, t, wrap_w);
+    push_note_lines(&mut rows, theme, app, t, wrap_w, clicks);
     push_attachment_lines(&mut rows, theme, app, t, clicks);
     rows
 }
@@ -158,7 +158,7 @@ fn push_attachment_lines<'a>(
     theme: &Theme,
     app: &App,
     t: &Task,
-    clicks: &mut Vec<(usize, std::path::PathBuf)>,
+    clicks: &mut Vec<(usize, crate::app::ClickAction)>,
 ) {
     let rels = crate::attach::attach_rels_from_raw(&t.raw);
     if rels.is_empty() {
@@ -177,7 +177,7 @@ fn push_attachment_lines<'a>(
         let path = crate::attach::path_for_rel(&assets, &rel);
         if path.exists() {
             app.register_link_target(rel.clone(), crate::attach::file_uri(&path));
-            clicks.push((rows.len(), path.clone()));
+            clicks.push((rows.len(), crate::app::ClickAction::Open(path.clone())));
             rows.push(line_panel(
                 theme,
                 vec![
@@ -204,7 +204,15 @@ fn push_attachment_lines<'a>(
 
 /// NOTE section: the linked note's full content, wrapped to the pane and
 /// styled with the same line-level Markdown rules as the note panel.
-fn push_note_lines<'a>(rows: &mut Vec<Line<'a>>, theme: &Theme, app: &App, t: &Task, wrap_w: usize) {
+/// Checkbox lines register as click targets that toggle them in the file.
+fn push_note_lines<'a>(
+    rows: &mut Vec<Line<'a>>,
+    theme: &Theme,
+    app: &App,
+    t: &Task,
+    wrap_w: usize,
+    clicks: &mut Vec<(usize, crate::app::ClickAction)>,
+) {
     let Some(rel) = crate::note::note_rel_from_raw(&t.raw) else {
         return;
     };
@@ -252,7 +260,7 @@ fn push_note_lines<'a>(rows: &mut Vec<Line<'a>>, theme: &Theme, app: &App, t: &T
         ));
     }
     let mut shown = 0usize;
-    for raw_line in body.lines() {
+    for (note_line, raw_line) in body.lines().enumerate() {
         if shown >= NOTE_PREVIEW_MAX_LINES {
             rows.push(line_panel(
                 theme,
@@ -267,6 +275,16 @@ fn push_note_lines<'a>(rows: &mut Vec<Line<'a>>, theme: &Theme, app: &App, t: &T
             rows.push(line_panel(theme, vec![Span::raw(" ")]));
             shown += 1;
             continue;
+        }
+        // Checkbox rows toggle on click, straight in the note file.
+        if crate::subtasks::checkbox_state(raw_line).is_some() {
+            clicks.push((
+                rows.len(),
+                crate::app::ClickAction::ToggleNoteLine {
+                    path: target.path.clone(),
+                    line: note_line,
+                },
+            ));
         }
         // Wrap long lines to the pane; only the first chunk keeps the
         // Markdown line styling (continuations read as plain text).

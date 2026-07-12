@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::app::{App, NotePanel};
+use crate::app::App;
 use crate::theme::Theme;
 
 /// Render the in-TUI note panel: title bar with the task body, the note's
@@ -38,16 +38,40 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let [body_area, footer_area] =
         Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(inner);
 
-    let lines: Vec<Line> = panel
-        .lines
-        .iter()
-        .enumerate()
-        .map(|(i, raw)| style_line(theme, panel, i, raw))
-        .collect();
+    // Hard-wrap each buffer line into width-sized display rows. Char-exact
+    // chunking (not word wrap) keeps the cursor mapping trivial: display
+    // row = col / w, x = col % w — no reflow bookkeeping.
+    let wrap_w = usize::from(body_area.width).max(8);
+    let mut lines: Vec<Line> = Vec::new();
+    let mut cursor_display_row = 0usize;
+    for (i, raw) in panel.lines.iter().enumerate() {
+        let chunks = chunk_chars(raw, wrap_w);
+        if i == panel.row {
+            let idx = (panel.col / wrap_w).min(chunks.len() - 1);
+            cursor_display_row = lines.len() + idx;
+        }
+        for (ci, chunk) in chunks.iter().enumerate() {
+            // Markdown line styling keys off the line head; continuations
+            // render as plain text.
+            let mut line = if ci == 0 {
+                markdown_line(theme, chunk)
+            } else {
+                Line::from(Span::styled(
+                    chunk.clone(),
+                    Style::default().fg(theme.fg),
+                ))
+            };
+            if i == panel.row && ci == (panel.col / wrap_w).min(chunks.len() - 1) {
+                let x = panel.col - ((panel.col / wrap_w).min(chunks.len() - 1)) * wrap_w;
+                line = apply_cursor_at(theme, line, chunk, x);
+            }
+            lines.push(line);
+        }
+    }
 
     let offset = crate::ui::keep_cursor_visible(
         panel.scroll.get(),
-        Some(panel.row),
+        Some(cursor_display_row),
         body_area.height,
         lines.len(),
     );
@@ -110,44 +134,46 @@ pub(crate) fn markdown_line(theme: &Theme, raw: &str) -> Line<'static> {
     }
 }
 
-fn style_line<'a>(theme: &Theme, panel: &NotePanel, idx: usize, raw: &'a str) -> Line<'a> {
-    let line = markdown_line(theme, raw);
-    if idx == panel.row {
-        apply_cursor(theme, panel, line, raw)
-    } else {
-        line
+/// Split a line into display chunks of at most `w` characters. Always
+/// returns at least one (possibly empty) chunk so empty lines keep a row.
+fn chunk_chars(s: &str, w: usize) -> Vec<String> {
+    if s.is_empty() {
+        return vec![String::new()];
     }
+    let chars: Vec<char> = s.chars().collect();
+    chars.chunks(w).map(|c| c.iter().collect()).collect()
 }
 
-/// Overlay the cursor cell on the current row. In insert mode the cursor may
-/// sit one past the end of the line (append position), rendered as a
-/// highlighted space.
-fn apply_cursor<'a>(theme: &Theme, panel: &NotePanel, line: Line<'a>, raw: &'a str) -> Line<'a> {
-    let col = panel.col.min(raw.chars().count());
+/// Overlay the cursor cell at character column `x` of a display chunk. In
+/// insert mode the cursor may sit one past the end of the chunk (append
+/// position), rendered as a highlighted space.
+fn apply_cursor_at(theme: &Theme, line: Line<'_>, chunk: &str, x: usize) -> Line<'static> {
+    let col = x.min(chunk.chars().count());
     let cursor_style = Style::default()
         .fg(theme.bg)
         .bg(theme.cursor)
         .add_modifier(Modifier::BOLD);
 
-    // Rebuild the row as three spans: before-cursor, cursor cell, after.
-    let mut chars = raw.char_indices();
-    let start = chars.nth(col).map_or(raw.len(), |(i, _)| i);
-    let end = raw[start..]
+    let start = chunk
+        .char_indices()
+        .nth(col)
+        .map_or(chunk.len(), |(i, _)| i);
+    let end = chunk[start..]
         .char_indices()
         .nth(1)
-        .map_or(raw.len(), |(i, _)| start + i);
+        .map_or(chunk.len(), |(i, _)| start + i);
 
     // Preserve the line-level style by reusing the first span's style for
     // the surrounding text (bullet-marker coloring is lost on the cursor
     // row — an acceptable trade for a simple, correct cursor).
     let base = line.spans.first().map_or(Style::default(), |s| s.style);
-    let before = &raw[..start];
-    let cursor_txt = if start == raw.len() {
-        " "
+    let before = chunk[..start].to_string();
+    let cursor_txt = if start == chunk.len() {
+        " ".to_string()
     } else {
-        &raw[start..end]
+        chunk[start..end].to_string()
     };
-    let after = if end <= raw.len() { &raw[end..] } else { "" };
+    let after = chunk.get(end..).unwrap_or("").to_string();
 
     Line::from(vec![
         Span::styled(before, base),

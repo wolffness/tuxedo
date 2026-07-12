@@ -127,6 +127,15 @@ pub fn build_line<'a>(task: &'a Task, opts: RowOpts<'a>, theme: &Theme) -> Line<
         rest = &rest[tok_end..];
     }
     let line_style = if opts.cursor {
+        // Bright cursor backgrounds (e.g. phosphor/CRT themes) would render
+        // same-hue token colors invisible; flip the row to reverse video so
+        // the text reads as dark-on-bright. Dark cursor backgrounds keep
+        // their token colors untouched.
+        if is_bright(theme.cursor) {
+            for s in &mut spans {
+                s.style = s.style.fg(theme.bg);
+            }
+        }
         Style::default().bg(theme.cursor)
     } else if opts.selected {
         Style::default().bg(theme.selected)
@@ -134,6 +143,19 @@ pub fn build_line<'a>(task: &'a Task, opts: RowOpts<'a>, theme: &Theme) -> Line<
         Style::default()
     };
     Line::from(spans).style(line_style)
+}
+
+/// True for backgrounds light enough that theme token colors need to flip
+/// to dark (reverse video). Conservative: only RGB colors qualify, via the
+/// usual relative-luminance weights.
+fn is_bright(c: ratatui::style::Color) -> bool {
+    match c {
+        ratatui::style::Color::Rgb(r, g, b) => {
+            let lum = 0.2126 * f32::from(r) + 0.7152 * f32::from(g) + 0.0722 * f32::from(b);
+            lum > 128.0
+        }
+        _ => false,
+    }
 }
 
 fn push_token_spans<'a>(

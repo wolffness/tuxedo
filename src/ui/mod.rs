@@ -37,6 +37,10 @@ const DIALOG_MIN_W: u16 = 40;
 const DIALOG_MAX_W: u16 = 100;
 
 const HELP_MAX_H: u16 = 29;
+
+const NOTE_MAX_H: u16 = 24;
+const NOTE_MIN_W: u16 = 46;
+const NOTE_MAX_W: u16 = 74;
 const HELP_MIN_W: u16 = 76;
 const HELP_MAX_W: u16 = 120;
 
@@ -176,11 +180,13 @@ pub fn draw(frame: &mut Frame, app: &App) {
             theme_picker::render(frame, r, app);
         }
         Mode::Note => {
-            let h: u16 = area.height.saturating_sub(3).min(HELP_MAX_H);
-            let w: u16 = (u32::from(area.width) * 9 / 10)
-                .clamp(u32::from(HELP_MIN_W), u32::from(HELP_MAX_W))
+            // Narrower than help: notes are prose, and ~70 columns reads
+            // better than a full-width sheet.
+            let h: u16 = area.height.saturating_sub(4).min(NOTE_MAX_H);
+            let w: u16 = (u32::from(area.width) * 3 / 5)
+                .clamp(u32::from(NOTE_MIN_W), u32::from(NOTE_MAX_W))
                 as u16;
-            let r = centered_in(area, w, h);
+            let r = centered_in(area, w.min(area.width.saturating_sub(2)), h);
             frame.render_widget(Clear, r);
             note_panel::render(frame, r, app);
         }

@@ -3,34 +3,34 @@ source: tests/snapshots.rs
 expression: buffer_to_text(&buf)
 ---
  FILTERS                   ▶▮◀ /tmp/tuxedo-snapshot.txt  •  15 tas DETAIL                           
-     ┌ * Write PR summary · note ─────────────────────────────────────────────────────────────┐     
- PROJ│# Write PR summary                                                                      │     
-   +w│                                                                                        │     
-   +h│Some context about the task.                                                            │     
-   +f│                                                                                        │     
-   +h│- [ ] draft outline                                                                     │     
-   +l│- [x] collect links                                                                     │     
-   +p│> reviewer prefers short PRs                                                            │     
-   +t│                                                                                        │     
-     │                                                                                        │rd   
- CONT│                                                                                        │     
-   @e│                                                                                        │     
-   @h│                                                                                        │     
-   @l│                                                                                        │     
-   @p│                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │                                                                                        │     
-     │ i edit · o editor · Ctrl-S save · Esc/q close (saves)                                  │     
-     └────────────────────────────────────────────────────────────────────────────────────────┘     
+                                                                                                    
+ PROJECTS                  (2)  PRIORITY A  ────────────────────── priority  (A)                    
+   +work             4      1 ▸ (A) Finish Q2 board deck +work @la created   2026-05-01             
+   +health          ┌ * Write PR summary · note ───────────────────────────────┐6-05-06  today      
+   +finance         │# Write PR summary                                        │rk                  
+   +home            │                                                          │ptop                
+   +learning        │Some context about the task.                              │                    
+   +personal        │                                                          │                    
+   +travel          │- [ ] draft outline                                       │                    
+                    │- [x] collect links                                       │1 Finish Q2 board   
+ CONTEXTS           │> reviewer prefers short PRs                              │aptop               
+   @errands         │One very long paragraph line that certainly exceeds the pa│6                   
+   @home            │nel width and must hard-wrap onto multiple display rows wi│                    
+   @laptop          │thout losing the cursor.                                  │                    
+   @phone           │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │                                                          │                    
+                    │ i edit · o editor · Ctrl-S save · Esc/q close (saves)    │                    
+                    └──────────────────────────────────────────────────────────┘                    
+                                                                                                    
+                                                                                                    
                                                                                                     
  NOTE   j/k · n new · r reschedule · x done · / search · ? he15 open · 2026-05-06 · tuxedo 2026.6.3

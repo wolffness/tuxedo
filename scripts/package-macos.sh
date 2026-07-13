@@ -1,12 +1,11 @@
 #!/bin/zsh
 # Package tuxedo as a macOS .app bundle and install it to /Applications.
 #
-# The bundle wraps the release binary in a launcher that opens it in a
-# dedicated Terminal window, so tuxedo gets a Dock icon, Spotlight entry,
-# and Finder presence without any code changes. `do script` runs in the
-# user's login shell, so TODO_FILE / TODO_DIR from dotfiles are honored;
-# with neither set, the launcher starts in $HOME (tuxedo then opens
-# ~/todo.txt or shows the first-run welcome).
+# The bundle wraps the release binary in a native AppKit launcher that
+# opens it in an iTerm2/Terminal window with the phosphor profile. The
+# terminal session runs through the user's login shell, so TODO_FILE /
+# TODO_DIR from dotfiles are honored; with neither set, tuxedo starts in
+# $HOME (opening ~/todo.txt or the first-run welcome).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -21,96 +20,46 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp target/release/tuxedo "$APP/Contents/Resources/tuxedo"
 cp packaging/tuxedo.icns "$APP/Contents/Resources/tuxedo.icns"
 # Native quick-capture agent (⌥]): a tiny AppKit panel that appends to
-# the inbox.txt sibling of TODO_FILE. Compiled from packaging/, installed
-# into the bundle, and kept alive by a per-user LaunchAgent.
+# the inbox.txt sibling of TODO_FILE, kept alive by a per-user
+# LaunchAgent. It lives in its OWN nested .app with its own bundle
+# identifier — if it ran as a bare binary inside Tuxedo.app,
+# LaunchServices would count it as "Tuxedo is already running" and
+# Dock/Finder launches of the main app would fail with error -600.
 echo "Building quick-capture agent..."
-swiftc -O -o "$APP/Contents/Resources/TuxedoCapture" \
+CAP="$APP/Contents/Resources/TuxedoCapture.app"
+mkdir -p "$CAP/Contents/MacOS"
+swiftc -O -o "$CAP/Contents/MacOS/TuxedoCapture" \
     packaging/TuxedoCapture.swift -framework AppKit -framework Carbon
+cat > "$CAP/Contents/Info.plist" <<CAPPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Tuxedo Capture</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.wolffness.tuxedo.capture</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>TuxedoCapture</string>
+    <key>LSUIElement</key>
+    <true/>
+</dict>
+</plist>
+CAPPLIST
 
 # The iTerm2-based capture profile is superseded by the native panel;
 # remove it so ⌥] isn't registered twice.
 rm -f "$HOME/Library/Application Support/iTerm2/DynamicProfiles/tuxedo-capture.json"
 
-cat > "$APP/Contents/MacOS/tuxedo-launcher" <<'LAUNCHER'
-#!/bin/zsh
-set -euo pipefail
-BIN="$(cd "$(dirname "$0")/../Resources" && pwd)/tuxedo"
-
-if [[ -d /Applications/iTerm.app ]]; then
-    # Install/refresh the "Tuxedo" dynamic profile (font + phosphor colors)
-    # — iTerm2 picks up DynamicProfiles JSON automatically. The profile's
-    # Command uses a login shell so TODO_FILE/TODO_DIR are honored, and
-    # resolves the app-bundled binary path at launch time.
-    DYN_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-    mkdir -p "$DYN_DIR"
-    cat > "$DYN_DIR/tuxedo.json" <<PROFILE
-{
-  "Profiles": [
-    {
-      "Name": "Tuxedo",
-      "Guid": "tuxedo-phosphor-green",
-      "Normal Font": "IBMPlexMono-Regular 15",
-      "Use Non-ASCII Font": false,
-      "Custom Command": "Yes",
-      "Command": "/bin/zsh -lc 'cd \\"\$HOME\\"; exec \\"$BIN\\"'",
-      "Background Color": { "Red Component": 0.008, "Green Component": 0.04, "Blue Component": 0.008 },
-      "Foreground Color": { "Red Component": 0.2, "Green Component": 1.0, "Blue Component": 0.2 },
-      "Bold Color": { "Red Component": 0.4, "Green Component": 1.0, "Blue Component": 0.4 },
-      "Cursor Color": { "Red Component": 0.2, "Green Component": 1.0, "Blue Component": 0.2 },
-      "Cursor Text Color": { "Red Component": 0.008, "Green Component": 0.04, "Blue Component": 0.008 },
-      "Silence Bell": true
-    }
-  ]
-}
-PROFILE
-    /usr/bin/osascript <<EOF
-tell application "iTerm2"
-    activate
-    -- iTerm2 loads DynamicProfiles asynchronously after startup, so a
-    -- cold launch may not know "Tuxedo" yet: retry briefly before falling
-    -- back to a default window (which would lose the font/colors).
-    set opened to false
-    repeat with i from 1 to 20
-        try
-            create window with profile "Tuxedo"
-            set opened to true
-            exit repeat
-        on error
-            delay 0.25
-        end try
-    end repeat
-    if not opened then
-        set w to (create window with default profile)
-        tell current session of w to write text "cd \"\$HOME\"; clear; exec '$BIN'"
-    end if
-end tell
-EOF
-    # Stay alive while tuxedo runs so the Dock shows the app as open
-    # (otherwise the launcher exits in milliseconds and the icon vanishes
-    # before it can be pinned).
-    sleep 3
-    while pgrep -f "$BIN" >/dev/null 2>&1; do
-        sleep 5
-    done
-    exit 0
-fi
-
-# Fallback: Terminal.app, applying the "Tuxedo" settings set when present.
-/usr/bin/osascript <<EOF
-tell application "Terminal"
-    activate
-    set t to do script "cd \"\$HOME\"; clear; exec '$BIN'"
-    if exists settings set "Tuxedo" then
-        set current settings of t to settings set "Tuxedo"
-    end if
-end tell
-EOF
-sleep 3
-while pgrep -f "$BIN" >/dev/null 2>&1; do
-    sleep 5
-done
-LAUNCHER
-chmod +x "$APP/Contents/MacOS/tuxedo-launcher"
+# Native launcher: a real AppKit executable, so the Dock icon stops
+# bouncing (shell-script launchers never report "finished launching"),
+# shows a running dot while the TUI is open, and refreshes the iTerm2
+# profile with this bundle's binary path on every launch.
+echo "Building launcher..."
+swiftc -O -o "$APP/Contents/MacOS/tuxedo-launcher" \
+    packaging/TuxedoLauncher.swift -framework AppKit
 
 VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -138,9 +87,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>11.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Tuxedo opens its task list in an iTerm2 or Terminal window.</string>
 </dict>
 </plist>
 PLIST
+
+codesign --force --deep -s - "$APP"
 
 # Install to /Applications and drop the staging copy so only one Tuxedo.app
 # exists on the machine (a stray dist copy kept showing up in Finder search).
@@ -161,7 +114,7 @@ cat > "$AGENT" <<AGENTPLIST
     <string>dev.wolffness.tuxedo.capture</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Applications/Tuxedo.app/Contents/Resources/TuxedoCapture</string>
+        <string>/Applications/Tuxedo.app/Contents/Resources/TuxedoCapture.app/Contents/MacOS/TuxedoCapture</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -171,5 +124,8 @@ cat > "$AGENT" <<AGENTPLIST
 </plist>
 AGENTPLIST
 launchctl bootout "gui/$(id -u)/dev.wolffness.tuxedo.capture" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$AGENT"
+pkill -f "Resources/TuxedoCapture" 2>/dev/null || true
+sleep 1
+launchctl bootstrap "gui/$(id -u)" "$AGENT" || \
+    launchctl kickstart -k "gui/$(id -u)/dev.wolffness.tuxedo.capture" || true
 echo "Installed: /Applications/Tuxedo.app (+ capture agent on ⌥])"

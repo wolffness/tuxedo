@@ -127,7 +127,14 @@ final class Launcher: NSObject, NSApplicationDelegate {
     func tuxedoRunning() -> Bool {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        p.arguments = ["-f", bin]
+        // Anchor to end-of-line ($) so we match ONLY the bare TUI binary and
+        // not siblings whose command line merely *starts* with this path —
+        // e.g. a stray `.../Resources/tuxedo-capture.sh`. Without the anchor,
+        // pgrep's substring match false-positives on such a process, which
+        // makes the launcher think the TUI is alive forever: it never quits
+        // (stale Dock app) and Dock-icon reopens just focus the terminal
+        // instead of opening a window.
+        p.arguments = ["-f", bin + "$"]
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
         guard (try? p.run()) != nil else { return false }

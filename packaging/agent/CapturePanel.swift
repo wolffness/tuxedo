@@ -1,50 +1,20 @@
-// Tuxedo quick-capture: a tiny native agent that shows a floating
-// phosphor-green entry panel on ⌥] (OmniFocus-style) and appends each line
-// to the inbox.txt sibling of TODO_FILE. tuxedo drains the inbox with
-// natural-language parsing. Compiled and installed by package-macos.sh;
-// kept alive by a LaunchAgent.
 import AppKit
 import Carbon.HIToolbox
-
-let phosphor = NSColor(srgbRed: 0.20, green: 1.00, blue: 0.20, alpha: 1.0)
-let phosphorDim = NSColor(srgbRed: 0.11, green: 0.56, blue: 0.11, alpha: 1.0)
-let screenBg = NSColor(srgbRed: 0.008, green: 0.04, blue: 0.008, alpha: 0.97)
 
 /// Borderless panels refuse key status unless told otherwise.
 final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-final class Capture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
+final class CapturePanel: NSObject, NSTextFieldDelegate {
     var panel: KeyPanel!
     var field: NSTextField!
     var inbox: URL!
 
-    func applicationDidFinishLaunching(_ note: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+    func start() {
         inbox = resolveInbox()
         buildPanel()
         registerHotkey()
-    }
-
-    /// TODO_FILE comes from the user's login shell (LaunchAgents get no
-    /// shell environment), falling back to ~/todo.txt.
-    func resolveInbox() -> URL {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = ["-lc", "printf %s \"${TODO_FILE:-$HOME/todo.txt}\""]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        var todo = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("todo.txt")
-        if (try? p.run()) != nil {
-            p.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let s = String(data: data, encoding: .utf8), !s.isEmpty {
-                todo = URL(fileURLWithPath: s)
-            }
-        }
-        return todo.deletingLastPathComponent().appendingPathComponent("inbox.txt")
     }
 
     func buildPanel() {
@@ -64,30 +34,30 @@ final class Capture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
 
         let root = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
         root.wantsLayer = true
-        root.layer?.backgroundColor = screenBg.cgColor
+        root.layer?.backgroundColor = Theme.screenBg.cgColor
         root.layer?.cornerRadius = 10
         root.layer?.borderWidth = 1.5
-        root.layer?.borderColor = phosphorDim.cgColor
+        root.layer?.borderColor = Theme.phosphorDim.cgColor
 
         let mono = NSFont(name: "IBMPlexMono-Regular", size: 18)
             ?? NSFont.monospacedSystemFont(ofSize: 18, weight: .regular)
 
         let prompt = NSTextField(labelWithString: ">")
         prompt.font = mono
-        prompt.textColor = phosphor
+        prompt.textColor = Theme.phosphor
         prompt.frame = NSRect(x: 18, y: (h - 26) / 2, width: 20, height: 26)
         root.addSubview(prompt)
 
         field = NSTextField(frame: NSRect(x: 44, y: (h - 26) / 2, width: w - 62, height: 26))
         field.font = mono
-        field.textColor = phosphor
+        field.textColor = Theme.phosphor
         field.isBordered = false
         field.isBezeled = false
         field.drawsBackground = false
         field.focusRingType = .none
         field.placeholderAttributedString = NSAttributedString(
             string: "nova tarefa… (amanhã, toda sexta, todo dia 2)",
-            attributes: [.foregroundColor: phosphorDim, .font: mono]
+            attributes: [.foregroundColor: Theme.phosphorDim, .font: mono]
         )
         field.delegate = self
         root.addSubview(field)
@@ -115,7 +85,7 @@ final class Capture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
         InstallEventHandler(
             GetApplicationEventTarget(),
             { _, _, userData in
-                let me = Unmanaged<Capture>.fromOpaque(userData!).takeUnretainedValue()
+                let me = Unmanaged<CapturePanel>.fromOpaque(userData!).takeUnretainedValue()
                 me.toggle()
                 return noErr
             },
@@ -187,8 +157,3 @@ final class Capture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
         hide()
     }
 }
-
-let app = NSApplication.shared
-let delegate = Capture()
-app.delegate = delegate
-app.run()

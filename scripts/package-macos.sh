@@ -25,24 +25,30 @@ cp packaging/tuxedo.icns "$APP/Contents/Resources/tuxedo.icns"
 # identifier — if it ran as a bare binary inside Tuxedo.app,
 # LaunchServices would count it as "Tuxedo is already running" and
 # Dock/Finder launches of the main app would fail with error -600.
-echo "Building quick-capture agent..."
-CAP="$APP/Contents/Resources/TuxedoCapture.app"
-mkdir -p "$CAP/Contents/MacOS"
-swiftc -O -o "$CAP/Contents/MacOS/TuxedoCapture" \
-    packaging/TuxedoCapture.swift -framework AppKit -framework Carbon
-cat > "$CAP/Contents/Info.plist" <<CAPPLIST
+echo "Building Tuxedo agent (capture + menu bar)..."
+AGENTAPP="$APP/Contents/Resources/TuxedoAgent.app"
+mkdir -p "$AGENTAPP/Contents/MacOS"
+swiftc -O -o "$AGENTAPP/Contents/MacOS/TuxedoAgent" \
+    packaging/agent/Paths.swift \
+    packaging/agent/Theme.swift \
+    packaging/agent/Summary.swift \
+    packaging/agent/CapturePanel.swift \
+    packaging/agent/MenuBar.swift \
+    packaging/agent/main.swift \
+    -framework AppKit -framework Carbon
+cat > "$AGENTAPP/Contents/Info.plist" <<CAPPLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Tuxedo Capture</string>
+    <string>Tuxedo Agent</string>
     <key>CFBundleIdentifier</key>
-    <string>dev.wolffness.tuxedo.capture</string>
+    <string>dev.wolffness.tuxedo.agent</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
-    <string>TuxedoCapture</string>
+    <string>TuxedoAgent</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
@@ -102,8 +108,13 @@ cp -R "$APP" /Applications/
 rm -rf "$APP"
 touch /Applications/Tuxedo.app
 
-# LaunchAgent: start the capture panel at login and keep it running.
-AGENT="$HOME/Library/LaunchAgents/dev.wolffness.tuxedo.capture.plist"
+# Migrate the pre-rename capture agent, then (re)install the unified agent.
+OLD_AGENT="$HOME/Library/LaunchAgents/dev.wolffness.tuxedo.capture.plist"
+launchctl bootout "gui/$(id -u)/dev.wolffness.tuxedo.capture" 2>/dev/null || true
+pkill -f "Resources/TuxedoCapture" 2>/dev/null || true
+rm -f "$OLD_AGENT"
+
+AGENT="$HOME/Library/LaunchAgents/dev.wolffness.tuxedo.agent.plist"
 mkdir -p "$HOME/Library/LaunchAgents"
 cat > "$AGENT" <<AGENTPLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -111,10 +122,10 @@ cat > "$AGENT" <<AGENTPLIST
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>dev.wolffness.tuxedo.capture</string>
+    <string>dev.wolffness.tuxedo.agent</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Applications/Tuxedo.app/Contents/Resources/TuxedoCapture.app/Contents/MacOS/TuxedoCapture</string>
+        <string>/Applications/Tuxedo.app/Contents/Resources/TuxedoAgent.app/Contents/MacOS/TuxedoAgent</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -123,9 +134,9 @@ cat > "$AGENT" <<AGENTPLIST
 </dict>
 </plist>
 AGENTPLIST
-launchctl bootout "gui/$(id -u)/dev.wolffness.tuxedo.capture" 2>/dev/null || true
-pkill -f "Resources/TuxedoCapture" 2>/dev/null || true
+launchctl bootout "gui/$(id -u)/dev.wolffness.tuxedo.agent" 2>/dev/null || true
+pkill -f "Resources/TuxedoAgent" 2>/dev/null || true
 sleep 1
 launchctl bootstrap "gui/$(id -u)" "$AGENT" || \
-    launchctl kickstart -k "gui/$(id -u)/dev.wolffness.tuxedo.capture" || true
-echo "Installed: /Applications/Tuxedo.app (+ capture agent on ⌥])"
+    launchctl kickstart -k "gui/$(id -u)/dev.wolffness.tuxedo.agent" || true
+echo "Installed: /Applications/Tuxedo.app (+ agent: ⌥] capture & menu bar)"

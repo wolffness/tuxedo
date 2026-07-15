@@ -13,25 +13,33 @@ struct TodoTask: Decodable {
     // completed); Decodable ignores keys we don't declare.
 }
 
-enum IconState { case empty, normal, alert }
+/// Icon urgency, worst-first: overdue → today → only upcoming → nothing dated.
+enum IconState { case clear, upcoming, today, overdue }
 
 struct Summary {
     let overdue: [TodoTask]
     let today: [TodoTask]
-    var actionable: Int { overdue.count + today.count }
+    let upcoming: [TodoTask]   // due > today, sorted by due ascending
+    /// Every pending task that has a due date — what the icon counts.
+    var totalDated: Int { overdue.count + today.count + upcoming.count }
     var iconState: IconState {
-        if !overdue.isEmpty { return .alert }
-        if !today.isEmpty { return .normal }
-        return .empty
+        if !overdue.isEmpty { return .overdue }
+        if !today.isEmpty { return .today }
+        if !upcoming.isEmpty { return .upcoming }
+        return .clear
     }
 }
 
-/// Pure: partition pending tasks into overdue (due < today) and due-today.
+/// Pure: partition pending dated tasks into overdue (due < today), due-today,
+/// and upcoming (due > today). No-date tasks are ignored (the bar is about
+/// time). Upcoming is sorted soonest-first.
 func computeSummary(_ tasks: [TodoTask], today: String) -> Summary {
     let pending = tasks.filter { !$0.done }
     let overdue = pending.filter { t in t.due.map { $0 < today } ?? false }
     let dueToday = pending.filter { $0.due == today }
-    return Summary(overdue: overdue, today: dueToday)
+    let upcoming = pending.filter { t in t.due.map { $0 > today } ?? false }
+        .sorted { ($0.due ?? "") < ($1.due ?? "") }
+    return Summary(overdue: overdue, today: dueToday, upcoming: upcoming)
 }
 
 /// Today as "YYYY-MM-DD" in the local time zone.

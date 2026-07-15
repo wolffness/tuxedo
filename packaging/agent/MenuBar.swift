@@ -5,7 +5,7 @@ import AppKit
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let onNewTask: () -> Void
-    private var current = Summary(overdue: [], today: [])
+    private var current = Summary(overdue: [], today: [], upcoming: [])
     private let maxPerGroup = 5
     private var watchSource: DispatchSourceFileSystemObject?
     private var watchedFD: Int32 = -1
@@ -90,21 +90,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func renderIcon() {
         guard let button = statusItem.button else { return }
         let mono = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        let n = current.totalDated
+        let (text, color): (String, NSColor)
         switch current.iconState {
-        case .empty:
-            // All clear: a green check.
-            button.attributedTitle = NSAttributedString(
-                string: "✓",
-                attributes: [.foregroundColor: Theme.phosphor, .font: mono])
-        case .normal:
-            button.attributedTitle = NSAttributedString(
-                string: "● \(current.actionable)",
-                attributes: [.foregroundColor: Theme.phosphor, .font: mono])
-        case .alert:
-            button.attributedTitle = NSAttributedString(
-                string: "● \(current.actionable)",
-                attributes: [.foregroundColor: Theme.amber, .font: mono])
+        case .clear:    (text, color) = ("✓", Theme.phosphor)       // nothing dated
+        case .upcoming: (text, color) = ("● \(n)", Theme.phosphorDim) // only future
+        case .today:    (text, color) = ("● \(n)", Theme.phosphor)    // due today
+        case .overdue:  (text, color) = ("● \(n)", Theme.amber)       // has overdue
         }
+        button.attributedTitle = NSAttributedString(
+            string: text, attributes: [.foregroundColor: color, .font: mono])
     }
 
     // NSMenuDelegate: build the dropdown from the cached summary — instant, and
@@ -112,17 +107,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // stall or dismiss the menu as it opens). A background refresh updates the
     // cache + icon for the next open.
     func menuNeedsUpdate(_ menu: NSMenu) {
-        NSLog("[TuxedoAgent] menuNeedsUpdate fired (overdue=\(current.overdue.count) today=\(current.today.count))")
         rebuildMenu(menu)
         refresh()
     }
 
     private func rebuildMenu(_ menu: NSMenu) {
         menu.removeAllItems()
-        addGroup(menu, title: "ATRASADAS", tasks: current.overdue, overdue: true)
-        addGroup(menu, title: "HOJE", tasks: current.today, overdue: false)
-        if current.actionable == 0 {
-            let none = NSMenuItem(title: "Nada para hoje 🎉", action: nil, keyEquivalent: "")
+        addGroup(menu, title: "ATRASADAS", tasks: current.overdue)
+        addGroup(menu, title: "HOJE", tasks: current.today)
+        addGroup(menu, title: "PRÓXIMAS", tasks: current.upcoming)
+        if current.totalDated == 0 {
+            let none = NSMenuItem(title: "Tudo em dia 🎉", action: nil, keyEquivalent: "")
             none.isEnabled = false
             menu.addItem(none)
         }
@@ -137,13 +132,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: "Sair", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
-    private func addGroup(_ menu: NSMenu, title: String, tasks: [TodoTask], overdue: Bool) {
+    private func addGroup(_ menu: NSMenu, title: String, tasks: [TodoTask]) {
         guard !tasks.isEmpty else { return }
         let header = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         for task in tasks.prefix(maxPerGroup) {
-            menu.addItem(taskItem(task, overdue: overdue))
+            menu.addItem(taskItem(task))
         }
         if tasks.count > maxPerGroup {
             let more = NSMenuItem(title: "  … +\(tasks.count - maxPerGroup) mais", action: nil, keyEquivalent: "")
@@ -154,9 +149,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     /// A task row with two click zones (see TaskRowView): the circle completes,
     /// the text opens the task.
-    private func taskItem(_ task: TodoTask, overdue: Bool) -> NSMenuItem {
-        var trailing = ""
-        if overdue, let d = task.due, let days = daysAgo(d) { trailing = "−\(days)d" }
+    private func taskItem(_ task: TodoTask) -> NSMenuItem {
+        let trailing = dueLabel(task.due)
         let item = NSMenuItem()
         item.view = TaskRowView(
             text: displayText(task),
@@ -183,7 +177,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return s.trimmingCharacters(in: .whitespaces)
     }
 
-    private func daysAgo(_ due: String) -> Int? {
+    /// Trailing badge for a row: "−Nd" overdue, "+Nd" upcoming, "" for today.
+    private func dueLabel(_ due: String?) -> String {
+        guard let due, let delta = dayDelta(due) else { return "" }
+        if delta > 0 { return "−\(delta)d" }   // due was N days ago
+        if delta < 0 { return "+\(-delta)d" }  // due in N days
+        return ""                              // today
+    }
+
+    /// Days between due and today (today − due): positive = overdue, negative =
+    /// upcoming, zero = today.
+    private func dayDelta(_ due: String) -> Int? {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = .current
         guard let d = f.date(from: due), let t = f.date(from: todayString()) else { return nil }
         return Calendar.current.dateComponents([.day], from: d, to: t).day

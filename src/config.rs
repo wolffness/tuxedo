@@ -57,6 +57,10 @@ pub struct Config {
     /// Advisor model override; defaults per backend when unset. The API key
     /// (for cloud backends) is read from the environment, never from here.
     pub advisor_model: Option<String>,
+    /// Vínculos projeto→repo do advisor. Cada par `(projeto, "owner/repo")`
+    /// liga um projeto do todo.txt a um repositório do GitHub. Serializado
+    /// uma linha por par como `advisor_link.<projeto> = <owner/repo>`.
+    pub advisor_links: Vec<(String, String)>,
 }
 
 impl Config {
@@ -186,6 +190,20 @@ fn parse(s: &str) -> Config {
             // name collapses to one entry, last value wins, position of
             // the first occurrence kept — matching `upsert`'s semantics.
             _ if k
+                .strip_prefix("advisor_link.")
+                .is_some_and(|n| !n.trim().is_empty()) =>
+            {
+                let name = k
+                    .strip_prefix("advisor_link.")
+                    .expect("checked above")
+                    .trim();
+                let repo = v.trim().to_string();
+                match c.advisor_links.iter_mut().find(|(n, _)| n.as_str() == name) {
+                    Some((_, r)) => *r = repo,
+                    None => c.advisor_links.push((name.to_string(), repo)),
+                }
+            }
+            _ if k
                 .strip_prefix("filter.")
                 .is_some_and(|n| !n.trim().is_empty()) =>
             {
@@ -258,6 +276,9 @@ fn serialize(c: &Config) -> String {
     if let Some(v) = &c.advisor_model {
         let _ = writeln!(out, "advisor_model = {v}");
     }
+    for (project, repo) in &c.advisor_links {
+        let _ = writeln!(out, "advisor_link.{project} = {repo}");
+    }
     out
 }
 
@@ -306,11 +327,33 @@ mod tests {
             advisor: None,
             advisor_backend: None,
             advisor_model: None,
+            advisor_links: vec![
+                ("prumo".into(), "wolffness/prumo".into()),
+                ("casa".into(), "wolffness/casa-infra".into()),
+            ],
         };
 
         let s = serialize(&c);
         let parsed = parse(&s);
         assert_eq!(parsed, c);
+    }
+
+    #[test]
+    fn advisor_links_round_trip_and_upsert() {
+        let s = "advisor_link.prumo = wolffness/prumo\n\
+                 advisor_link.casa = wolffness/casa-infra\n\
+                 advisor_link.prumo = wolffness/prumo-2\n";
+        let c = parse(s);
+        // Última ocorrência vence, posição da primeira preservada (como filters).
+        assert_eq!(
+            c.advisor_links,
+            vec![
+                ("prumo".to_string(), "wolffness/prumo-2".to_string()),
+                ("casa".to_string(), "wolffness/casa-infra".to_string()),
+            ]
+        );
+        // Serialize → parse é idempotente.
+        assert_eq!(parse(&serialize(&c)).advisor_links, c.advisor_links);
     }
 
     #[test]
@@ -465,6 +508,7 @@ mod tests {
             advisor: None,
             advisor_backend: None,
             advisor_model: None,
+            advisor_links: vec![("errand".into(), "octocat/errand".into())],
         };
         written.save_to(&path).expect("save should succeed");
         assert!(path.exists());

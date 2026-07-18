@@ -173,7 +173,13 @@ final class CapturePanel: NSObject, NSTextFieldDelegate {
             return true
         }
         if sel == #selector(NSResponder.insertNewline(_:)) {
-            save()
+            // Enter accepts the highlighted suggestion while the popup is
+            // open (matching the TUI prompts); a second Enter saves.
+            if !matches.isEmpty {
+                acceptSuggestion(in: textView)
+            } else {
+                save()
+            }
             return true
         }
         if sel == #selector(NSResponder.cancelOperation(_:)) {

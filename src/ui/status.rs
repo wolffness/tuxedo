@@ -211,14 +211,30 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
 pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme();
+    let is_shell = app.search_is_shell();
     let visible_count = app.visible_indices().len();
-    let suggestion = format!("  {visible_count} matches · Enter accept · Esc cancel");
+    // Texto iniciado por `!` é um comando shell: prefixo `SHELL` e dica de que
+    // Enter executa (em vez de aceitar uma busca).
+    let (prefix, prefix_color) = if is_shell {
+        ("SHELL", theme.pri_a)
+    } else {
+        ("/", theme.accent)
+    };
+    let suggestion = if is_shell {
+        format!(
+            "  {} · Esc {}",
+            tr("Enter runs", "Enter executa"),
+            tr("cancel", "cancela")
+        )
+    } else {
+        format!("  {visible_count} matches · Enter accept · Esc cancel")
+    };
     let mut spans = vec![
         Span::raw(" "),
         Span::styled(
-            "/",
+            prefix,
             Style::default()
-                .fg(theme.accent)
+                .fg(prefix_color)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),

@@ -251,11 +251,22 @@ fn run(
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     handle_key(app, key, keybinds);
+                    // Both handoffs temporarily restore the terminal; on return
+                    // the alternate screen was cleared by the child process but
+                    // ratatui's back buffer still holds the old frame, so a plain
+                    // redraw diffs to a no-op and leaves the screen blank. Force
+                    // a full repaint with `clear()` (also fixes the editor path).
+                    let mut restored_terminal = false;
                     if let Some(path) = app.take_pending_editor_path() {
                         open_path_in_editor(&path)?;
+                        restored_terminal = true;
                     }
                     if let Some(cmd) = app.take_pending_shell() {
                         run_shell_command(app, &cmd)?;
+                        restored_terminal = true;
+                    }
+                    if restored_terminal {
+                        terminal.clear()?;
                     }
                     dirty = true;
                 }

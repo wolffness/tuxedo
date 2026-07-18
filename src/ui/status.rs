@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::{App, DialogInputMode, Mode, View};
+use crate::brand::tr;
 use crate::ui::dialog::draft_cursor_spans;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
@@ -13,34 +14,34 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         Mode::Normal => "NORMAL".into(),
         Mode::Insert => match app.draft.input_mode() {
             DialogInputMode::Normal => "NORMAL",
-            DialogInputMode::Insert => "INSERT",
+            DialogInputMode::Insert => tr("INSERT", "INSERIR"),
         }
         .into(),
-        Mode::Search => "SEARCH".into(),
+        Mode::Search => tr("SEARCH", "BUSCA").into(),
         Mode::Visual => "VISUAL".into(),
-        Mode::Help => "HELP".into(),
-        Mode::Settings => "SETTINGS".into(),
-        Mode::PromptProject => "PROJECT".into(),
-        Mode::PromptContext => "CONTEXT".into(),
-        Mode::PickProject => "PICK +PROJECT".into(),
-        Mode::PickContext => "PICK @CONTEXT".into(),
-        Mode::PickSavedFilter => "PICK FILTER".into(),
-        Mode::PromptSaveFilter => "SAVE FILTER".into(),
-        Mode::PromptAttach => "ATTACH".into(),
-        Mode::CommandPalette => "COMMAND".into(),
-        Mode::Share => "SHARE".into(),
-        Mode::PickTheme => "PICK THEME".into(),
-        Mode::Welcome => "WELCOME".into(),
+        Mode::Help => tr("HELP", "AJUDA").into(),
+        Mode::Settings => tr("SETTINGS", "CONFIG").into(),
+        Mode::PromptProject => tr("PROJECT", "PROJETO").into(),
+        Mode::PromptContext => tr("CONTEXT", "CONTEXTO").into(),
+        Mode::PickProject => tr("PICK +PROJECT", "ESCOLHER +PROJETO").into(),
+        Mode::PickContext => tr("PICK @CONTEXT", "ESCOLHER @CONTEXTO").into(),
+        Mode::PickSavedFilter => tr("PICK FILTER", "ESCOLHER FILTRO").into(),
+        Mode::PromptSaveFilter => tr("SAVE FILTER", "SALVAR FILTRO").into(),
+        Mode::PromptAttach => tr("ATTACH", "ANEXAR").into(),
+        Mode::CommandPalette => tr("COMMAND", "COMANDO").into(),
+        Mode::Share => tr("SHARE", "CAPTURA").into(),
+        Mode::PickTheme => tr("PICK THEME", "ESCOLHER TEMA").into(),
+        Mode::Welcome => tr("WELCOME", "BOAS-VINDAS").into(),
         Mode::Note => {
             if app.note_panel.as_ref().is_some_and(|p| p.insert) {
-                "NOTE·INSERT".into()
+                tr("NOTE·INSERT", "NOTA·INSERIR").into()
             } else {
-                "NOTE".into()
+                tr("NOTE", "NOTA").into()
             }
         }
     };
     if matches!(app.view, View::Archive) {
-        mode_label = "ARCHIVE".into();
+        mode_label = tr("ARCHIVE", "ARQUIVO").into();
     }
     if let Some(f) = app.flash_active() {
         mode_label = format!("{mode_label} · {f}").into();
@@ -48,34 +49,80 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
     let hint = match app.mode {
         Mode::Insert => match app.draft.input_mode() {
-            DialogInputMode::Normal => {
-                "h/l navigate · w/b/e word · i/a insert · Enter save · Esc cancel"
-            }
-            DialogInputMode::Insert => "Enter save · Esc normal",
+            DialogInputMode::Normal => tr(
+                "h/l navigate · w/b/e word · i/a insert · Enter save · Esc cancel",
+                "h/l navegar · w/b/e palavra · i/a inserir · Enter salvar · Esc cancelar",
+            ),
+            DialogInputMode::Insert => tr("Enter save · Esc normal", "Enter salvar · Esc normal"),
         },
-        Mode::Visual => "space toggle · x complete · dd delete · Esc cancel",
-        Mode::Help => "? close help",
-        Mode::Settings => "Esc back",
-        Mode::PromptProject => "type +project name · Enter save · Esc cancel",
-        Mode::PromptContext => "type @context name · Enter toggle · Esc cancel",
-        Mode::PickProject => "j/k or ↑↓ cycle projects · Enter keep · Esc clear",
-        Mode::PickContext => "j/k or ↑↓ cycle contexts · Enter keep · Esc clear",
-        Mode::PickSavedFilter => "j/k or ↑↓ cycle filters · Enter keep · Esc revert",
-        Mode::PromptSaveFilter => "type a filter name · Enter save · Esc cancel",
-        Mode::CommandPalette => "type to filter · Enter run · Esc cancel",
-        Mode::Share => "scan the QR · any key dismisses",
-        Mode::Welcome => "c create ./todo.txt · s open sample · q quit",
-        _ => "j/k · n new · r reschedule · x done · / search · ? help · u undo · q quit",
+        Mode::Visual => tr(
+            "space toggle · x complete · dd delete · Esc cancel",
+            "espaço alternar · x concluir · dd apagar · Esc cancelar",
+        ),
+        Mode::Help => tr("? close help", "? fechar ajuda"),
+        Mode::Settings => tr("Esc back", "Esc voltar"),
+        Mode::PromptProject => tr(
+            "type +project name · Enter save · Esc cancel",
+            "digite o +projeto · Enter salvar · Esc cancelar",
+        ),
+        Mode::PromptContext => tr(
+            "type @context name · Enter toggle · Esc cancel",
+            "digite o @contexto · Enter alternar · Esc cancelar",
+        ),
+        Mode::PickProject => tr(
+            "j/k or ↑↓ cycle projects · Enter keep · Esc clear",
+            "j/k ou ↑↓ alternar projetos · Enter manter · Esc limpar",
+        ),
+        Mode::PickContext => tr(
+            "j/k or ↑↓ cycle contexts · Enter keep · Esc clear",
+            "j/k ou ↑↓ alternar contextos · Enter manter · Esc limpar",
+        ),
+        Mode::PickSavedFilter => tr(
+            "j/k or ↑↓ cycle filters · Enter keep · Esc revert",
+            "j/k ou ↑↓ alternar filtros · Enter manter · Esc reverter",
+        ),
+        Mode::PromptSaveFilter => tr(
+            "type a filter name · Enter save · Esc cancel",
+            "nomeie o filtro · Enter salvar · Esc cancelar",
+        ),
+        Mode::CommandPalette => tr(
+            "type to filter · Enter run · Esc cancel",
+            "digite para filtrar · Enter executar · Esc cancelar",
+        ),
+        Mode::Share => tr(
+            "scan the QR · any key dismisses",
+            "escaneie o QR · qualquer tecla fecha",
+        ),
+        Mode::Welcome => tr(
+            "c create ./todo.txt · s open sample · q quit",
+            "c criar ./todo.txt · s abrir exemplo · q sair",
+        ),
+        _ => tr(
+            "j/k · n new · r reschedule · x done · / search · ? help · u undo · q quit",
+            "j/k · n nova · r reagendar · x concluir · / buscar · ? ajuda · u desfazer · q sair",
+        ),
     };
 
     let mut right_parts = Vec::new();
     if matches!(app.view, View::Archive) {
-        right_parts.push(format!("{} archived", app.archive().len()));
+        right_parts.push(format!(
+            "{} {}",
+            app.archive().len(),
+            tr("archived", "arquivadas")
+        ));
     } else {
-        right_parts.push(format!("{} open", app.visible_indices().len()));
+        right_parts.push(format!(
+            "{} {}",
+            app.visible_indices().len(),
+            tr("open", "abertas")
+        ));
     }
     if !app.selection.is_empty() {
-        right_parts.push(format!("{} selected", app.selection.len()));
+        right_parts.push(format!(
+            "{} {}",
+            app.selection.len(),
+            tr("selected", "selecionadas")
+        ));
     }
     right_parts.push(app.today().to_string());
     right_parts.push(format!(

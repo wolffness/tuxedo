@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
+use crate::brand::tr;
 use crate::theme::Theme;
 
 /// Render the in-TUI note panel: title bar with the task body, the note's
@@ -16,7 +17,11 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         return;
     };
 
-    let mode_label = if panel.insert { " editing " } else { " note " };
+    let mode_label = if panel.insert {
+        tr(" editing ", " editando ")
+    } else {
+        tr(" note ", " nota ")
+    };
     let dirty_mark = if panel.dirty { "* " } else { "" };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -122,9 +127,15 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     );
 
     let hint = if panel.insert {
-        "Esc view · Enter newline · Ctrl-S save"
+        tr(
+            "Esc view · Enter newline · Ctrl-S save",
+            "Esc visualizar · Enter nova linha · Ctrl-S salvar",
+        )
     } else {
-        "i edit · Space toggle · n subtask · o editor · Esc/q close (saves)"
+        tr(
+            "i edit · Space toggle · n subtask · o editor · Esc/q close (saves)",
+            "i editar · Espaço alternar · n subtarefa · o editor · Esc/q fechar (salva)",
+        )
     };
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(

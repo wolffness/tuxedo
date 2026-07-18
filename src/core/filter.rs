@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 use chrono::{Datelike, Days, NaiveDate};
 
 use crate::app::{Filter, Sort, WeekStart};
+use crate::brand::tr;
 use crate::search::subseq_match_ci;
 use crate::threshold;
 use crate::todo::{self, Task};
@@ -29,12 +30,12 @@ pub enum ListDueBucket {
 impl ListDueBucket {
     pub fn label(self) -> &'static str {
         match self {
-            ListDueBucket::Overdue => "OVERDUE",
-            ListDueBucket::Today => "TODAY",
-            ListDueBucket::ThisWeek => "THIS WEEK",
-            ListDueBucket::NextWeek => "NEXT WEEK",
-            ListDueBucket::Later => "LATER",
-            ListDueBucket::NoDue => "NO DUE DATE",
+            ListDueBucket::Overdue => tr("OVERDUE", "ATRASADAS"),
+            ListDueBucket::Today => tr("TODAY", "HOJE"),
+            ListDueBucket::ThisWeek => tr("THIS WEEK", "ESTA SEMANA"),
+            ListDueBucket::NextWeek => tr("NEXT WEEK", "PRÓXIMA SEMANA"),
+            ListDueBucket::Later => tr("LATER", "MAIS TARDE"),
+            ListDueBucket::NoDue => tr("NO DUE DATE", "SEM VENCIMENTO"),
         }
     }
 }

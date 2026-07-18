@@ -538,7 +538,7 @@ impl App {
         match self.click_target_at(x, y) {
             Some(ClickAction::Open(path)) => {
                 match crate::attach::open_with_system(&path) {
-                    Ok(()) => self.flash("opened attachment"),
+                    Ok(()) => self.flash(crate::brand::tr("opened attachment", "anexo aberto")),
                     Err(e) => self.flash(format!("open failed: {e}")),
                 }
                 true
@@ -734,7 +734,10 @@ impl App {
         self.selection.exit_edit();
         self.recompute_visible();
         self.clamp_cursor();
-        self.flash("file changed on disk — reloaded");
+        self.flash(crate::brand::tr(
+            "file changed on disk — reloaded",
+            "arquivo mudou no disco — recarregado",
+        ));
     }
 
     /// Map a store reconcile result to the matching flash + view refresh for a

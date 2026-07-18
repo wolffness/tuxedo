@@ -305,7 +305,7 @@ fn poll_config_reload(app: &mut App, rx: &Option<mpsc::Receiver<()>>) -> bool {
     match Config::load_strict(path) {
         Ok(new_cfg) => {
             app.reload_config(new_cfg);
-            app.flash("config reloaded");
+            app.flash(tuxedo::brand::tr("config reloaded", "config recarregada"));
             true
         }
         Err(e) => {

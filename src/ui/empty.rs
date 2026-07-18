@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
+use crate::brand::tr;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme();
@@ -30,10 +31,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(block, r);
 
     let shortcuts: &[(&str, &str)] = &[
-        ("n", "add a task"),
-        ("?", "show all keybindings"),
-        (",", "settings"),
-        ("q", "quit"),
+        ("n", tr("add a task", "adicionar tarefa")),
+        ("?", tr("show all keybindings", "ver todos os atalhos")),
+        (",", tr("settings", "configurações")),
+        ("q", tr("quit", "sair")),
     ];
 
     let mut lines: Vec<Line> = Vec::new();
@@ -42,7 +43,13 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         lines.push(Line::raw(""));
     }
     lines.push(Line::from(Span::styled(
-        "  no tasks yet — let's get started".to_string(),
+        format!(
+            "  {}",
+            tr(
+                "no tasks yet — let's get started",
+                "nenhuma tarefa ainda — vamos começar"
+            )
+        ),
         Style::default().fg(theme.fg),
     )));
     lines.push(Line::raw(""));

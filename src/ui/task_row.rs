@@ -1,6 +1,7 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use crate::brand::tr;
 use crate::search::subseq_match_ci;
 use crate::theme::Theme;
 use crate::todo::{Task, body_after_priority};
@@ -370,20 +371,16 @@ pub(crate) fn due_token_style(task_done: bool, due: &str, today: &str, theme: &T
 pub fn due_label(due: &str, today: &str) -> String {
     if let Some(d) = day_diff(due, today) {
         if d < 0 {
-            return if d == -1 {
-                "overdue 1d".into()
-            } else {
-                format!("overdue {}d", -d)
-            };
+            return format!("{} {}d", tr("overdue", "atrasada"), -d);
         }
         if d == 0 {
-            return "today".into();
+            return tr("today", "hoje").into();
         }
         if d == 1 {
-            return "tomorrow".into();
+            return tr("tomorrow", "amanhã").into();
         }
         if d < 7 {
-            return format!("in {}d", d);
+            return format!("{} {}d", tr("in", "em"), d);
         }
     }
     due.to_string()

@@ -29,7 +29,7 @@ impl App {
                 self.archive_after_complete("completed +next → archived");
             }
             CompleteOutcome::Uncompleted { abs } => {
-                self.flash("uncompleted");
+                self.flash(crate::brand::tr("uncompleted", "desmarcada"));
                 self.after_mutation(abs);
             }
             CompleteOutcome::Aborted(r) => self.handle_reconcile_abort(r),
@@ -44,7 +44,7 @@ impl App {
     fn archive_after_complete(&mut self, msg: &str) {
         match self.store.archive_completed() {
             ArchiveOutcome::Archived { .. } => self.flash(msg),
-            ArchiveOutcome::Nothing => self.flash("completed"),
+            ArchiveOutcome::Nothing => self.flash(crate::brand::tr("completed", "concluída")),
             ArchiveOutcome::Aborted(r) => {
                 self.handle_reconcile_abort(r);
                 return;
@@ -383,7 +383,10 @@ impl App {
             UnarchiveOutcome::OutOfRange => {}
             UnarchiveOutcome::Aborted(r) => self.handle_reconcile_abort(r),
             UnarchiveOutcome::DoneReloaded => {
-                self.flash("done.txt changed on disk — reloaded");
+                self.flash(crate::brand::tr(
+                    "done.txt changed on disk — reloaded",
+                    "done.txt mudou no disco — recarregado",
+                ));
                 self.recompute_visible();
                 self.clamp_cursor();
             }
@@ -401,7 +404,10 @@ impl App {
             }
             ArchiveDeleteOutcome::OutOfRange => {}
             ArchiveDeleteOutcome::DoneReloaded => {
-                self.flash("done.txt changed on disk — reloaded");
+                self.flash(crate::brand::tr(
+                    "done.txt changed on disk — reloaded",
+                    "done.txt mudou no disco — recarregado",
+                ));
                 self.recompute_visible();
                 self.clamp_cursor();
             }

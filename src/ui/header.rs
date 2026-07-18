@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::Filter;
+use crate::brand::tr;
 use crate::theme::Theme;
 
 /// Build the human-readable filter chip shown in the header. `+project` /
@@ -55,7 +56,7 @@ pub fn render(frame: &mut Frame, area: Rect, theme: &Theme, props: HeaderProps<'
         // Span::styled(props.file.to_string(), Style::default().fg(theme.dim)),
         Span::styled("  •  ", Style::default().fg(theme.dim)),
         Span::styled(
-            format!("{} tasks", props.count),
+            format!("{} {}", props.count, tr("tasks", "tarefas")),
             Style::default().fg(theme.dim),
         ),
         Span::styled("  •  ", Style::default().fg(theme.dim)),

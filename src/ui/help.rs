@@ -5,97 +5,178 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
+use crate::brand::tr;
 use crate::theme::Theme;
 
-type Section = (&'static str, &'static [(&'static str, &'static str)]);
+type Section = (&'static str, Vec<(&'static str, &'static str)>);
 
-const NAVIGATION: Section = (
-    "NAVIGATION",
-    &[
-        ("j / ↓", "next task"),
-        ("k / ↑", "previous task"),
-        ("gg", "first task"),
-        ("G", "last task"),
-        ("Ctrl-d / Ctrl-u", "page down / up"),
-    ],
-);
+// Sections are built at render time so every label can follow the invoked
+// name's language (English as tuxedo, pt-BR as prumo) via `tr`.
+fn navigation() -> Section {
+    (
+        tr("NAVIGATION", "NAVEGAÇÃO"),
+        vec![
+            ("j / ↓", tr("next task", "próxima tarefa")),
+            ("k / ↑", tr("previous task", "tarefa anterior")),
+            ("gg", tr("first task", "primeira tarefa")),
+            ("G", tr("last task", "última tarefa")),
+            (
+                "Ctrl-d / Ctrl-u",
+                tr("page down / up", "meia página abaixo / acima"),
+            ),
+        ],
+    )
+}
 
-const EDITING: Section = (
-    "EDITING",
-    &[
-        ("n", "new task"),
-        ("e", "edit line (normal)"),
-        ("i", "edit line (insert)"),
-        ("r", "reschedule task"),
-        ("x", "complete → archive"),
-        ("dd", "delete task"),
-        ("p", "cycle priority A→B→C→·"),
-        ("c", "add/remove context"),
-        ("+", "add project"),
-        ("yy", "copy line to clipboard"),
-        ("yb", "copy body only"),
-        ("u", "undo"),
-    ],
-);
+fn editing() -> Section {
+    (
+        tr("EDITING", "EDIÇÃO"),
+        vec![
+            ("n", tr("new task", "nova tarefa")),
+            ("e", tr("edit line (normal)", "editar linha (normal)")),
+            ("i", tr("edit line (insert)", "editar linha (inserir)")),
+            ("r", tr("reschedule task", "reagendar tarefa")),
+            ("x", tr("complete → archive", "concluir → arquivar")),
+            ("dd", tr("delete task", "apagar tarefa")),
+            (
+                "p",
+                tr("cycle priority A→B→C→·", "alternar prioridade A→B→C→·"),
+            ),
+            ("c", tr("add/remove context", "adicionar/remover contexto")),
+            ("+", tr("add project", "adicionar projeto")),
+            ("yy", tr("copy line to clipboard", "copiar linha")),
+            ("yb", tr("copy body only", "copiar só o corpo")),
+            ("u", tr("undo", "desfazer")),
+        ],
+    )
+}
 
-const NOTES_FILES: Section = (
-    "NOTES & FILES",
-    &[
-        ("m / N", "note panel (in-app)"),
-        ("  i / Esc", "panel: write / back·close"),
-        ("  Shift+arrows", "panel: select text"),
-        ("  Del/Backspace", "panel: delete selection"),
-        ("  Space / n", "panel: toggle / new subtask"),
-        ("  Ctrl-S / o", "panel: save / $EDITOR"),
-        ("o / O", "open / create note in $EDITOR"),
-        ("t", "attach file (drag or path)"),
-        ("Enter", "open attachments"),
-    ],
-);
+fn notes_files() -> Section {
+    (
+        tr("NOTES & FILES", "NOTAS E ARQUIVOS"),
+        vec![
+            (
+                "m / N",
+                tr("note panel (in-app)", "painel de nota (no app)"),
+            ),
+            (
+                "  i / Esc",
+                tr(
+                    "panel: write / back·close",
+                    "painel: escrever / voltar·fechar",
+                ),
+            ),
+            (
+                "  Shift+arrows",
+                tr("panel: select text", "painel: selecionar texto"),
+            ),
+            (
+                "  Del/Backspace",
+                tr("panel: delete selection", "painel: apagar seleção"),
+            ),
+            (
+                "  Space / n",
+                tr(
+                    "panel: toggle / new subtask",
+                    "painel: alternar / nova subtarefa",
+                ),
+            ),
+            (
+                "  Ctrl-S / o",
+                tr("panel: save / $EDITOR", "painel: salvar / $EDITOR"),
+            ),
+            (
+                "o / O",
+                tr(
+                    "open / create note in $EDITOR",
+                    "abrir / criar nota no $EDITOR",
+                ),
+            ),
+            (
+                "t",
+                tr(
+                    "attach file (drag or path)",
+                    "anexar arquivo (arraste ou caminho)",
+                ),
+            ),
+            ("Enter", tr("open attachments", "abrir anexos")),
+        ],
+    )
+}
 
-const VIEW: Section = (
-    "VIEW",
-    &[
-        ("/", "fuzzy search"),
-        ("fp / fc", "filter project/context"),
-        ("ff / fs", "saved filter pick/save"),
-        ("S", "cycle sort"),
-        ("v", "visual / multi-select"),
-        ("l", "list view"),
-        ("a", "archive view"),
-        ("A", "archive completed"),
-        ("H", "show done in list"),
-        ("F", "show future in list"),
-        ("[ / ]", "toggle filter / detail"),
-        ("T", "cycle theme"),
-        ("D", "cycle density"),
-        ("L", "toggle line numbers"),
-    ],
-);
+fn view() -> Section {
+    (
+        tr("VIEW", "VISÃO"),
+        vec![
+            ("/", tr("fuzzy search", "busca difusa")),
+            (
+                "fp / fc",
+                tr("filter project/context", "filtrar projeto/contexto"),
+            ),
+            (
+                "ff / fs",
+                tr("saved filter pick/save", "filtro salvo: usar/salvar"),
+            ),
+            ("S", tr("cycle sort", "alternar ordenação")),
+            (
+                "v",
+                tr("visual / multi-select", "visual / seleção múltipla"),
+            ),
+            ("l", tr("list view", "visão de lista")),
+            ("a", tr("archive view", "visão de arquivo")),
+            ("A", tr("archive completed", "arquivar concluídas")),
+            ("H", tr("show done in list", "mostrar concluídas na lista")),
+            ("F", tr("show future in list", "mostrar futuras na lista")),
+            (
+                "[ / ]",
+                tr("toggle filter / detail", "alternar filtro / detalhe"),
+            ),
+            ("T", tr("cycle theme", "alternar tema")),
+            ("D", tr("cycle density", "alternar densidade")),
+            ("L", tr("toggle line numbers", "números de linha")),
+        ],
+    )
+}
 
-const SYSTEM: Section = (
-    "SYSTEM",
-    &[
-        (": / Ctrl-P", "command palette"),
-        ("s", "share capture QR"),
-        ("? / ,", "help / settings"),
-        ("q", "quit"),
-    ],
-);
+fn system() -> Section {
+    (
+        tr("SYSTEM", "SISTEMA"),
+        vec![
+            (": / Ctrl-P", tr("command palette", "paleta de comandos")),
+            ("s", tr("share capture QR", "QR de captura")),
+            ("? / ,", tr("help / settings", "ajuda / configurações")),
+            ("q", tr("quit", "sair")),
+        ],
+    )
+}
 
-const FORMAT: Section = (
-    "FORMAT",
-    &[
-        ("(A)", "priority A-Z"),
-        ("YYYY-MM-DD", "creation / done date"),
-        ("+project", "project tag(s)"),
-        ("@context", "context tag(s)"),
-        ("due:YYYY-MM-DD", "due date"),
-        ("rec:Nu", "recur (u in d/w/m/y/b)"),
-        ("rec:+Nu", "strict: anchor on due:"),
-        ("x DATE BODY", "completed task prefix"),
-    ],
-);
+fn format_section() -> Section {
+    (
+        tr("FORMAT", "FORMATO"),
+        vec![
+            ("(A)", tr("priority A-Z", "prioridade A-Z")),
+            (
+                "YYYY-MM-DD",
+                tr("creation / done date", "data de criação / conclusão"),
+            ),
+            ("+project", tr("project tag(s)", "tag(s) de projeto")),
+            ("@context", tr("context tag(s)", "tag(s) de contexto")),
+            ("due:YYYY-MM-DD", tr("due date", "data de vencimento")),
+            (
+                "rec:Nu",
+                tr("recur (u in d/w/m/y/b)", "recorrência (u em d/w/m/y/b)"),
+            ),
+            (
+                "rec:+Nu",
+                tr("strict: anchor on due:", "estrita: ancora no due:"),
+            ),
+            (
+                "x DATE BODY",
+                tr("completed task prefix", "prefixo de tarefa concluída"),
+            ),
+        ],
+    )
+}
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme();
@@ -110,7 +191,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                     .fg(theme.accent)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" · help ".to_string(), Style::default().fg(theme.dim)),
+            Span::styled(
+                format!(" · {} ", tr("help", "ajuda")),
+                Style::default().fg(theme.dim),
+            ),
         ]))
         .style(Style::default().bg(theme.panel));
     let inner = block.inner(area);
@@ -124,14 +208,15 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let kb_lines = two_columns(
         theme,
         inner.width,
-        &[NAVIGATION, EDITING, SYSTEM],
-        &[VIEW, NOTES_FILES],
+        &[navigation(), editing(), system()],
+        &[view(), notes_files()],
     );
     let kb_height = u16::try_from(kb_lines.len()).unwrap_or(u16::MAX);
 
-    let (fmt_left, fmt_right) = FORMAT.1.split_at(FORMAT.1.len().div_ceil(2));
-    let fmt_left_section: Section = (FORMAT.0, fmt_left);
-    let fmt_right_section: Section = ("", fmt_right);
+    let format = format_section();
+    let (fmt_left, fmt_right) = format.1.split_at(format.1.len().div_ceil(2));
+    let fmt_left_section: Section = (format.0, fmt_left.to_vec());
+    let fmt_right_section: Section = ("", fmt_right.to_vec());
     let fmt_lines = two_columns(
         theme,
         inner.width,
@@ -225,7 +310,7 @@ fn render_sections<'a>(theme: &Theme, sections: &[Section]) -> Vec<Line<'a>> {
                 ),
             ]));
         }
-        for (k, d) in *items {
+        for (k, d) in items {
             lines.push(Line::from(vec![
                 Span::raw("    "),
                 Span::styled(

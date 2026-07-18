@@ -30,7 +30,10 @@ impl App {
                 self.clamp_cursor();
             }
             BulkCompleteOutcome::NothingToComplete => {
-                self.flash("nothing to complete");
+                self.flash(crate::brand::tr(
+                    "nothing to complete",
+                    "nada para concluir",
+                ));
                 self.selection.clear();
                 self.mode = Mode::Normal;
             }

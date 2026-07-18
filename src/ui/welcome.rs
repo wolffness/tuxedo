@@ -10,17 +10,20 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app::App;
+use crate::brand::tr;
 
 /// Natural (width, height) for the overlay. The caller centers and `Clear`s
 /// a rect of this size; `render` fills it.
 pub const WIDTH: u16 = 56;
 pub const HEIGHT: u16 = 16;
 
-const CHOICES: &[(&str, &str)] = &[
-    ("c", "create ./todo.txt here"),
-    ("s", "open the sample"),
-    ("q", "quit"),
-];
+fn choices() -> [(&'static str, &'static str); 3] {
+    [
+        ("c", tr("create ./todo.txt here", "criar ./todo.txt aqui")),
+        ("s", tr("open the sample", "abrir o exemplo")),
+        ("q", tr("quit", "sair")),
+    ]
+}
 
 /// Render the welcome box, filling `area`. The caller is responsible for
 /// centering and clearing — see [`WIDTH`]/[`HEIGHT`].
@@ -38,7 +41,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                     .fg(theme.accent)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" · welcome ", Style::default().fg(theme.dim)),
+            Span::styled(
+                format!(" · {} ", tr("welcome", "boas-vindas")),
+                Style::default().fg(theme.dim),
+            ),
         ]))
         .style(Style::default().bg(theme.panel));
     let inner = block.inner(area);
@@ -50,11 +56,17 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         lines.push(Line::raw(""));
     }
     lines.push(Line::from(Span::styled(
-        "  no todo.txt in this folder yet".to_string(),
+        format!(
+            "  {}",
+            tr(
+                "no todo.txt in this folder yet",
+                "ainda não há todo.txt nesta pasta"
+            )
+        ),
         Style::default().fg(theme.fg),
     )));
     lines.push(Line::raw(""));
-    for (k, label) in CHOICES {
+    for (k, label) in choices() {
         lines.push(Line::from(vec![
             Span::raw("   "),
             Span::styled(

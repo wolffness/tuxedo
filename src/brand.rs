@@ -13,6 +13,17 @@ use std::sync::OnceLock;
 /// stay deterministic.
 const KNOWN_NAMES: [&str; 2] = ["tuxedo", "prumo"];
 
+/// True when the program was invoked as `prumo` — the pt-BR-branded name.
+pub fn is_prumo() -> bool {
+    app_name() == "prumo"
+}
+
+/// Pick the pt-BR string when running as `prumo`, the English one otherwise
+/// (including test harnesses, which keeps snapshots deterministic).
+pub fn tr(en: &'static str, pt: &'static str) -> &'static str {
+    if is_prumo() { pt } else { en }
+}
+
 /// The user-visible program name: the basename of the invoked binary when it
 /// is a shipped name, otherwise the crate name.
 pub fn app_name() -> &'static str {

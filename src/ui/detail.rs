@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::App;
+use crate::brand::tr;
 use crate::theme::Theme;
 use crate::todo::Task;
 use crate::ui::task_row::due_label;
@@ -50,7 +51,7 @@ fn build_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![Span::styled(
-            " DETAIL",
+            tr(" DETAIL", " DETALHES"),
             Style::default().fg(theme.dim).add_modifier(Modifier::BOLD),
         )],
     ));
@@ -58,7 +59,10 @@ fn build_lines<'a>(
     let Some(t) = task else {
         rows.push(line_panel(
             theme,
-            vec![Span::styled(" (no task)", Style::default().fg(theme.dim))],
+            vec![Span::styled(
+                tr(" (no task)", " (sem tarefa)"),
+                Style::default().fg(theme.dim),
+            )],
         ));
         return rows;
     };
@@ -76,14 +80,20 @@ fn build_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![
-            Span::styled(" priority  ", Style::default().fg(theme.dim)),
+            Span::styled(
+                tr(" priority  ", " prioridade "),
+                Style::default().fg(theme.dim),
+            ),
             priority_value,
         ],
     ));
     rows.push(line_panel(
         theme,
         vec![
-            Span::styled(" created   ", Style::default().fg(theme.dim)),
+            Span::styled(
+                tr(" created   ", " criada     "),
+                Style::default().fg(theme.dim),
+            ),
             Span::styled(
                 t.created_date.as_deref().unwrap_or("—"),
                 Style::default().fg(theme.fg),
@@ -94,7 +104,10 @@ fn build_lines<'a>(
         rows.push(line_panel(
             theme,
             vec![
-                Span::styled(" due       ", Style::default().fg(theme.dim)),
+                Span::styled(
+                    tr(" due       ", " vence      "),
+                    Style::default().fg(theme.dim),
+                ),
                 Span::styled(due.as_str(), Style::default().fg(theme.fg)),
                 Span::raw("  "),
                 Span::styled(due_label(due, today), Style::default().fg(theme.overdue)),
@@ -104,7 +117,10 @@ fn build_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![
-            Span::styled(" projects  ", Style::default().fg(theme.dim)),
+            Span::styled(
+                tr(" projects  ", " projetos   "),
+                Style::default().fg(theme.dim),
+            ),
             Span::styled(
                 t.projects
                     .iter()
@@ -118,7 +134,10 @@ fn build_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![
-            Span::styled(" contexts  ", Style::default().fg(theme.dim)),
+            Span::styled(
+                tr(" contexts  ", " contextos  "),
+                Style::default().fg(theme.dim),
+            ),
             Span::styled(
                 t.contexts
                     .iter()
@@ -168,7 +187,7 @@ fn push_attachment_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![Span::styled(
-            " FILES",
+            tr(" FILES", " ARQUIVOS"),
             Style::default().fg(theme.dim).add_modifier(Modifier::BOLD),
         )],
     ));
@@ -221,7 +240,7 @@ fn push_note_lines<'a>(
     rows.push(line_panel(
         theme,
         vec![Span::styled(
-            " NOTE",
+            tr(" NOTE", " NOTA"),
             Style::default().fg(theme.dim).add_modifier(Modifier::BOLD),
         )],
     ));
@@ -265,7 +284,7 @@ fn push_note_lines<'a>(
             rows.push(line_panel(
                 theme,
                 vec![Span::styled(
-                    " … (m opens the full note)",
+                    tr(" … (m opens the full note)", " … (m abre a nota completa)"),
                     Style::default().fg(theme.dim),
                 )],
             ));

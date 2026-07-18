@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::app::{App, ordered_unique};
+use crate::brand::tr;
 use crate::search::subseq_match_ci;
 use crate::theme::Theme;
 use crate::todo;
@@ -20,7 +21,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     lines.push(line_pad(
         theme,
         vec![Span::styled(
-            " FILTERS",
+            tr(" FILTERS", " FILTROS"),
             Style::default().fg(theme.dim).add_modifier(Modifier::BOLD),
         )],
     ));
@@ -28,7 +29,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     lines.push(line_pad(
         theme,
         vec![Span::styled(
-            " PROJECTS",
+            tr(" PROJECTS", " PROJETOS"),
             Style::default()
                 .fg(theme.project)
                 .add_modifier(Modifier::BOLD),
@@ -46,7 +47,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     lines.push(line_pad(
         theme,
         vec![Span::styled(
-            " CONTEXTS",
+            tr(" CONTEXTS", " CONTEXTOS"),
             Style::default()
                 .fg(theme.context)
                 .add_modifier(Modifier::BOLD),
@@ -67,7 +68,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         lines.push(line_pad(
             theme,
             vec![Span::styled(
-                " SAVED",
+                tr(" SAVED", " SALVAS"),
                 Style::default()
                     .fg(theme.accent)
                     .add_modifier(Modifier::BOLD),
@@ -118,7 +119,10 @@ fn filter_row<'a>(
 fn hint_row<'a>(theme: &Theme, token: &'a str, token_color: ratatui::style::Color) -> Line<'a> {
     Line::from(vec![
         Span::raw("   "),
-        Span::styled("tag with ", Style::default().fg(theme.dim)),
+        Span::styled(
+            tr("tag with ", "marque com "),
+            Style::default().fg(theme.dim),
+        ),
         Span::styled(token, Style::default().fg(token_color)),
     ])
     .style(Style::default().bg(theme.panel))

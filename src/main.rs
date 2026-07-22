@@ -453,6 +453,7 @@ fn handle_kanban(app: &mut App, key: KeyEvent) {
         KeyCode::Char('H') | KeyCode::Left => app.kanban_move_status(false),
         KeyCode::Char('L') | KeyCode::Right => app.kanban_move_status(true),
         KeyCode::Char('a') => app.kanban_cycle_agent(),
+        KeyCode::Char('d') => app.kanban_dispatch(),
         KeyCode::Char('r') => app.refresh_kanban(),
         KeyCode::Esc | KeyCode::Char('l') | KeyCode::Char('K') | KeyCode::Char('q') => {
             app.exit_kanban_view();

@@ -121,17 +121,22 @@ fn render_column(
         } else {
             card.agent.clone()
         };
-        lines.push(
-            Line::from(vec![
-                Span::styled(prefix.to_string(), Style::default().fg(theme.accent)),
-                Span::styled(
-                    format!("#{} ", card.number),
-                    Style::default().fg(theme.pri_a),
-                ),
-                Span::styled(format!("· {agent}"), Style::default().fg(theme.dim)),
-            ])
-            .style(Style::default().bg(bg)),
-        );
+        let mut head = vec![
+            Span::styled(prefix.to_string(), Style::default().fg(theme.accent)),
+            Span::styled(
+                format!("#{} ", card.number),
+                Style::default().fg(theme.pri_a),
+            ),
+            Span::styled(format!("· {agent}"), Style::default().fg(theme.dim)),
+        ];
+        // Badge do agente herdr despachado (▶ working / ⚠ blocked / ⏸ idle).
+        if let Some(badge) = app.kanban_agent_badge(idx) {
+            head.push(Span::styled(
+                format!("  {badge}"),
+                Style::default().fg(theme.accent),
+            ));
+        }
+        lines.push(Line::from(head).style(Style::default().bg(bg)));
         let mut title = card.title.clone();
         if title.chars().count() > width {
             title = title.chars().take(width.saturating_sub(1)).collect::<String>() + "…";

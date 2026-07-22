@@ -163,6 +163,9 @@ pub struct App {
     pub(crate) kanban: Vec<crate::advisor::kanban::KanbanCard>,
     /// Metadados do board (ids de campos/opções), buscados no refresh.
     pub(crate) kanban_meta: Option<crate::advisor::kanban::BoardMeta>,
+    /// Estado do agente herdr de cada card (paralelo a `kanban`), atualizado
+    /// no refresh. `None` = sem agente despachado (ou herdr indisponível).
+    pub(crate) kanban_agent_status: Vec<Option<String>>,
     /// Cursor da visão Kanban sobre a ordem visível (coluna a coluna).
     pub(crate) kanban_cursor: usize,
     /// The search string that was active when the `ff` picker opened, so
@@ -280,6 +283,7 @@ impl App {
             issues: Vec::new(),
             kanban: Vec::new(),
             kanban_meta: None,
+            kanban_agent_status: Vec::new(),
             kanban_cursor: 0,
             issues_repo: None,
             issues_project: None,
@@ -1044,12 +1048,50 @@ impl App {
                 self.kanban_cursor = self.kanban_cursor.min(n.saturating_sub(1));
                 self.kanban_meta = crate::advisor::kanban::fetch_board_meta().ok();
                 self.flash(format!("{n} {}", crate::brand::tr("cards", "cards")));
+                // Depois do flash de contagem: se o herdr estiver fora do ar,
+                // o aviso dele é o que deve ficar visível.
+                self.refresh_kanban_agent_status();
             }
             Err(e) => self.flash(format!(
                 "{}: {e}",
                 crate::brand::tr("board fetch failed", "falha ao buscar o board")
             )),
         }
+    }
+
+    /// Estado do agente herdr por card. Se nenhum agente `issue-*` existe
+    /// (ou o herdr está fora do PATH), evita N consultas e zera os badges;
+    /// a indisponibilidade do herdr vira um flash único, não um erro.
+    fn refresh_kanban_agent_status(&mut self) {
+        use crate::advisor::dispatch;
+        self.kanban_agent_status = match dispatch::dispatched_count() {
+            Ok(0) => vec![None; self.kanban.len()],
+            Ok(_) => self
+                .kanban
+                .iter()
+                .map(|c| dispatch::agent_status(c.number))
+                .collect(),
+            Err(_) => {
+                self.flash(crate::brand::tr(
+                    "herdr unavailable — no agent badges",
+                    "herdr indisponível — sem estado dos agentes",
+                ));
+                vec![None; self.kanban.len()]
+            }
+        };
+    }
+
+    /// Badge do agente do card `idx` (`▶ working`, `⚠ blocked`, ...), se há
+    /// agente despachado. Símbolo+texto, nunca só cor.
+    pub fn kanban_agent_badge(&self, idx: usize) -> Option<String> {
+        let status = self.kanban_agent_status.get(idx)?.as_deref()?;
+        let symbol = match status {
+            "working" => "▶",
+            "blocked" => "⚠",
+            "idle" => "⏸",
+            _ => "·",
+        };
+        Some(format!("{symbol} {status}"))
     }
 
     /// Índices dos cards na ordem visível do board (coluna a coluna), para o
@@ -1090,13 +1132,7 @@ impl App {
     /// A API confirma primeiro; o estado local só muda em caso de sucesso.
     pub fn kanban_move_status(&mut self, forward: bool) {
         use crate::advisor::kanban::COLUMNS;
-        let Some(meta) = self.kanban_meta.clone() else {
-            self.flash(crate::brand::tr(
-                "board metadata missing — press r",
-                "sem metadados do board — aperte r",
-            ));
-            return;
-        };
+        // A checagem de metadados fica em `kanban_set_status`.
         let order = self.kanban_visible_order();
         let Some(&idx) = order.get(self.kanban_cursor) else {
             return;
@@ -1111,7 +1147,19 @@ impl App {
         if next == cur {
             return;
         }
-        let target = COLUMNS[next];
+        self.kanban_set_status(idx, COLUMNS[next]);
+    }
+
+    /// Seta o Status do card `idx` para `target` via API; só muda o estado
+    /// local (e o cursor, que segue o card) depois que a API confirma.
+    fn kanban_set_status(&mut self, idx: usize, target: &str) {
+        let Some(meta) = self.kanban_meta.clone() else {
+            self.flash(crate::brand::tr(
+                "board metadata missing — press r",
+                "sem metadados do board — aperte r",
+            ));
+            return;
+        };
         let Some((opt_id, _)) = meta.status_options.iter().find(|(_, n)| n == target) else {
             self.flash(format!(
                 "{}: {target}",
@@ -1119,6 +1167,7 @@ impl App {
             ));
             return;
         };
+        let card = &self.kanban[idx];
         match crate::advisor::kanban::set_item_field(&card.item_id, &meta.status_field, opt_id) {
             Ok(()) => {
                 let number = self.kanban[idx].number;
@@ -1132,6 +1181,65 @@ impl App {
             Err(e) => self.flash(format!(
                 "{}: {e}",
                 crate::brand::tr("board update failed", "falha ao atualizar o board")
+            )),
+        }
+    }
+
+    /// Despacha o card selecionado (`d`): exige Agent definido, respeita a
+    /// fila (máx. [`MAX_DISPATCHED`](crate::advisor::dispatch::MAX_DISPATCHED))
+    /// e, em caso de sucesso, move o card para In Progress.
+    pub fn kanban_dispatch(&mut self) {
+        use crate::advisor::dispatch;
+        let order = self.kanban_visible_order();
+        let Some(&idx) = order.get(self.kanban_cursor) else {
+            return;
+        };
+        let card = self.kanban[idx].clone();
+        if card.agent.is_empty() {
+            self.flash(crate::brand::tr(
+                "no agent — press a to set one",
+                "sem agente — defina com a",
+            ));
+            return;
+        }
+        if dispatch::is_dispatched(card.number) {
+            self.flash(format!(
+                "issue-{} {}",
+                card.number,
+                crate::brand::tr("already running", "já em execução")
+            ));
+            return;
+        }
+        match dispatch::dispatched_count() {
+            Ok(n) if n >= dispatch::MAX_DISPATCHED => {
+                self.flash(format!(
+                    "{} — {n} {}",
+                    crate::brand::tr("queue full", "fila cheia"),
+                    crate::brand::tr("agents active", "agentes ativos")
+                ));
+                return;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                self.flash(format!("herdr: {e}"));
+                return;
+            }
+        }
+        match dispatch::dispatch(&card) {
+            Ok(()) => {
+                self.kanban_set_status(idx, "In Progress");
+                if idx < self.kanban_agent_status.len() {
+                    self.kanban_agent_status[idx] = crate::advisor::dispatch::agent_status(card.number);
+                }
+                self.flash(format!(
+                    "▶ issue-{} {}",
+                    card.number,
+                    crate::brand::tr("dispatched", "despachado")
+                ));
+            }
+            Err(e) => self.flash(format!(
+                "{}: {e}",
+                crate::brand::tr("dispatch failed", "falha no dispatch")
             )),
         }
     }

@@ -109,6 +109,20 @@ pub fn is_dispatched(number: u64) -> bool {
     herdr(&["agent", "get", &agent_name(number)]).is_ok()
 }
 
+/// Estado do agente `issue-<n>` no herdr (`working`/`blocked`/`idle`/...),
+/// ou `None` se não existe (ou o herdr está indisponível).
+pub fn agent_status(number: u64) -> Option<String> {
+    let out = herdr(&["agent", "get", &agent_name(number)]).ok()?;
+    extract_agent_status(&out)
+}
+
+/// Extrai o primeiro `"agent_status":"<x>"` de um JSON do herdr.
+pub fn extract_agent_status(json: &str) -> Option<String> {
+    let rest = json.split("\"agent_status\":\"").nth(1)?;
+    let status = rest.split('"').next()?;
+    (!status.is_empty()).then(|| status.to_string())
+}
+
 /// Dispara o agente do card: `herdr agent start issue-<n> --cwd <repo dir>
 /// --no-focus -- <argv do agente>`. O chamador decide fila/estado.
 pub fn dispatch(card: &KanbanCard) -> Result<()> {
@@ -164,5 +178,12 @@ mod tests {
     #[test]
     fn agent_name_format() {
         assert_eq!(agent_name(42), "issue-42");
+    }
+
+    #[test]
+    fn extracts_agent_status_from_json() {
+        let json = r#"{"result":{"agent":{"agent_status":"working","name":"issue-2"}}}"#;
+        assert_eq!(extract_agent_status(json).as_deref(), Some("working"));
+        assert_eq!(extract_agent_status("{}"), None);
     }
 }
